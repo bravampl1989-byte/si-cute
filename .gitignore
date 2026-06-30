@@ -1,0 +1,10 @@
+node_modules/
+.next/
+.next-dev/
+.env
+.env.local
+.env.*.local
+local.db
+local.db-*
+*.log
+drizzle/meta/

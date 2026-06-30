@@ -3,11 +3,7 @@ import { drizzle } from "drizzle-orm/libsql";
 
 import * as schema from "@/lib/db/schema";
 
-const databaseUrl = process.env.TURSO_DATABASE_URL;
-
-if (!databaseUrl) {
-  throw new Error("TURSO_DATABASE_URL is required");
-}
+const databaseUrl = process.env.TURSO_DATABASE_URL ?? "file:/tmp/cutipns.db";
 
 const client = createClient({
   url: databaseUrl,
@@ -15,3 +11,4 @@ const client = createClient({
 });
 
 export const db = drizzle(client, { schema });
+export const isDatabaseConfigured = Boolean(process.env.TURSO_DATABASE_URL);

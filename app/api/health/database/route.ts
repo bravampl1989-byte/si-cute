@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 
-import { db } from "@/lib/db/client";
+import { db, isDatabaseConfigured } from "@/lib/db/client";
 
 export async function GET() {
   try {
@@ -17,9 +17,11 @@ export async function GET() {
 
     return NextResponse.json({
       ok: true,
-      database: process.env.TURSO_DATABASE_URL?.startsWith("file:")
-        ? "local-libsql"
-        : "turso",
+      database: isDatabaseConfigured
+        ? process.env.TURSO_DATABASE_URL?.startsWith("file:")
+          ? "local-libsql"
+          : "turso"
+        : "fallback-temp-sqlite",
       counts,
     });
   } catch (error) {

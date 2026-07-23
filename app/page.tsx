@@ -84,6 +84,7 @@ type LeaveRequest = {
   start: string;
   end: string;
   submittedAt: string;
+  submittedYear?: number;
   pybApprovedAt?: string | null;
   serviceYearsAtSubmission: number;
   serviceMonthsAtSubmission: number;
@@ -500,7 +501,9 @@ function getLeaveDocumentSuffix(request: LeaveRequest) {
   const month = isoMatch
     ? Object.keys(romanMonths)[Number(isoMatch[2]) - 1]
     : indonesianMatch?.[1];
-  const year = isoMatch?.[1] ?? indonesianMatch?.[2] ?? String(activeFiscalYear);
+  const year = String(
+    request.submittedYear ?? isoMatch?.[1] ?? indonesianMatch?.[2] ?? activeFiscalYear,
+  );
 
   return `KPA.W13-A31/KP5.3/${romanMonths[month ?? ""] ?? "-"}/${year}`;
 }

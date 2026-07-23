@@ -246,6 +246,7 @@ export async function GET(request: Request) {
         start: formatDate(String(row.tgl_mulai)),
         end: formatDate(String(row.tgl_selesai)),
         submittedAt: formatDate(createdAt),
+        submittedYear: Number(createdAt.slice(0, 4)) || new Date().getFullYear(),
         pybApprovedAt: row.pyb_approved_at
           ? formatDate(String(row.pyb_approved_at))
           : null,

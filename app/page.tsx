@@ -2398,10 +2398,8 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       <div className="flex min-h-screen">
         <DashboardSidebar
           activeTab={activeTab}
-          accountRole={roleLabel}
           viewRole={viewRole}
           onSelect={setActiveTab}
-          onLogout={logout}
         />
         <div className="flex min-w-0 flex-1 flex-col">
       <header className="sticky top-0 z-40 border-b bg-white/95 shadow-[0_1px_18px_rgba(15,23,42,0.06)] backdrop-blur">
@@ -4310,10 +4308,8 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       {mobileMenuOpen ? (
         <MobileMenuDrawer
           activeTab={activeTab}
-          accountRole={roleLabel}
           viewRole={viewRole}
           onClose={() => setMobileMenuOpen(false)}
-          onLogout={logout}
           onSelect={(tab) => {
             setActiveTab(tab);
             setMobileMenuOpen(false);
@@ -4529,16 +4525,12 @@ function getNavigationItems(viewRole: ViewRole, activeTab: string) {
 
 function DashboardSidebar({
   activeTab,
-  accountRole,
   viewRole,
   onSelect,
-  onLogout,
 }: {
   activeTab: string;
-  accountRole: string;
   viewRole: ViewRole;
   onSelect: (tab: string) => void;
-  onLogout: () => void;
 }) {
   const items = getNavigationItems(viewRole, activeTab);
 
@@ -4576,21 +4568,6 @@ function DashboardSidebar({
           );
         })}
       </nav>
-
-      <div className="px-4 pb-5">
-        <div className="mb-3 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-xs text-blue-50/85">
-          <p className="font-semibold text-white">{accountRole}</p>
-          <p className="mt-0.5">Akun aktif</p>
-        </div>
-        <button
-          type="button"
-          className="flex w-full items-center gap-3 rounded-md border border-white/12 px-3 py-2.5 text-left text-sm font-medium text-blue-50/85 transition hover:bg-white/10 hover:text-white"
-          onClick={onLogout}
-        >
-          <LogOut className="h-4 w-4" />
-          Logout
-        </button>
-      </div>
     </aside>
   );
 }
@@ -4633,18 +4610,14 @@ function MobileNavigation({
 
 function MobileMenuDrawer({
   activeTab,
-  accountRole,
   viewRole,
   onClose,
   onSelect,
-  onLogout,
 }: {
   activeTab: string;
-  accountRole: string;
   viewRole: ViewRole;
   onClose: () => void;
   onSelect: (tab: string) => void;
-  onLogout: () => void;
 }) {
   const items = getNavigationItems(viewRole, activeTab);
 
@@ -4690,21 +4663,6 @@ function MobileMenuDrawer({
             );
           })}
         </nav>
-
-        <div className="px-4 pb-5">
-          <div className="mb-3 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-xs text-blue-50/85">
-            <p className="font-semibold text-white">{accountRole}</p>
-            <p className="mt-0.5">Akun aktif</p>
-          </div>
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-md border border-white/12 px-3 py-2.5 text-left text-sm font-medium text-blue-50/85 transition hover:bg-white/10 hover:text-white"
-            onClick={onLogout}
-          >
-            <LogOut className="h-4 w-4" />
-            Logout
-          </button>
-        </div>
       </aside>
     </div>
   );

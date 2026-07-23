@@ -6395,7 +6395,7 @@ function QrVerificationMark({ code, signature }: { code: string; signature?: str
   }, [code, signature]);
 
   return (
-    <div className="flex h-16 w-28 items-center justify-center bg-white p-1">
+    <div className="flex h-32 w-56 items-center justify-center bg-white p-1">
       {imageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img

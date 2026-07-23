@@ -1940,7 +1940,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       );
       pdf.setFontSize(7);
       pdf.text("Sampang, " + submissionDate, 130, 32);
-      pdf.text(["Yth. Ketua Pengadilan Agama Sampang", "Di", "Sampang"], 122, 41);
+      pdf.text(["Yth. Ketua Pengadilan Agama Sampang", "Di", "Sampang"], 130, 37);
 
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(8);
@@ -2064,7 +2064,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     );
     pdf.setFontSize(7);
     pdf.text("Sampang, " + submissionDate, 130, 25);
-    pdf.text(["Yth. Ketua Pengadilan Agama Sampang", "di", "Sampang"], 122, 34);
+    pdf.text(["Yth. Ketua Pengadilan Agama Sampang", "di", "Sampang"], 130, 30);
 
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(8);
@@ -5921,7 +5921,7 @@ function DispositionSheet({
             <p>REPUBLIK INDONESIA</p>
             <p>NOMOR 13 TAHUN 2019</p>
             <p className="mt-4">Sampang, {request.submittedAt}</p>
-            <p className="mt-4">Yth. Ketua Pengadilan Agama Sampang</p>
+            <p className="mt-2">Yth. Ketua Pengadilan Agama Sampang</p>
             <p>di</p>
             <p>Sampang</p>
           </div>
@@ -6283,7 +6283,7 @@ function PppkDispositionSheet({
             <p>NOMOR : 212/SEK/SK.KP5.3/II/2024</p>
             <p>TANGGAL : 23 Februari 2024</p>
             <p className="mt-4">Sampang, {request.submittedAt}</p>
-            <p className="mt-4">Yth. Ketua Pengadilan Agama Sampang</p>
+            <p className="mt-2">Yth. Ketua Pengadilan Agama Sampang</p>
             <p>Di</p>
             <p>Sampang</p>
           </div>

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { client, isDatabaseConfigured } from "@/lib/db/client";
 import { ensureRequestSignatures } from "@/lib/request-signatures";
+import { ensureAnnualQuotaRollover } from "@/lib/annual-rollover";
 import {
   dashboardCacheSeconds,
   getDashboardCache,
@@ -63,6 +64,7 @@ function formatDate(value: string | null) {
 
 export async function GET(request: Request) {
   try {
+    await ensureAnnualQuotaRollover();
     await ensureRequestSignatures();
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role") ?? "admin";

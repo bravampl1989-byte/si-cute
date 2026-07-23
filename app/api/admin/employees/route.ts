@@ -3,6 +3,8 @@ import { sql } from "drizzle-orm";
 
 import { GET as getDashboard } from "@/app/api/dashboard/route";
 import { db } from "@/lib/db/client";
+import { ensureAnnualQuotaRollover } from "@/lib/annual-rollover";
+import { invalidateDashboardCache } from "@/lib/dashboard-cache";
 
 export const dynamic = "force-dynamic";
 
@@ -88,5 +90,22 @@ export async function PUT(request: Request) {
     return refreshedEmployees();
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Data pegawai belum bisa disimpan." }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const body = (await request.json()) as { action?: string };
+    if (body.action !== "reset-current-year-quota") {
+      return NextResponse.json({ error: "Aksi kuota tidak dikenali." }, { status: 400 });
+    }
+    await ensureAnnualQuotaRollover();
+    invalidateDashboardCache();
+    return refreshedEmployees();
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Rollover kuota belum bisa dijalankan." },
+      { status: 500 },
+    );
   }
 }

@@ -6,6 +6,7 @@ import { invalidateDashboardCache } from "@/lib/dashboard-cache";
 import { db } from "@/lib/db/client";
 import { sendWhatsApp } from "@/lib/whatsapp";
 import { ensureRequestSignatures, saveRequestSignature } from "@/lib/request-signatures";
+import { getWorkingDays } from "@/lib/holidays";
 
 export const dynamic = "force-dynamic";
 
@@ -70,12 +71,19 @@ export async function POST(request: Request) {
       !type ||
       !body.startDate ||
       !body.endDate ||
-      !body.days ||
       !body.reason ||
       !body.address
     ) {
       return NextResponse.json(
         { error: "Data pengajuan belum lengkap." },
+        { status: 400 },
+      );
+    }
+
+    const workingDays = await getWorkingDays(body.startDate, body.endDate);
+    if (workingDays <= 0) {
+      return NextResponse.json(
+        { error: "Rentang tanggal tidak memiliki hari kerja setelah libur dan akhir pekan dikecualikan." },
         { status: 400 },
       );
     }
@@ -86,7 +94,7 @@ export async function POST(request: Request) {
         (nip, jenis_cuti, tgl_mulai, tgl_selesai, jumlah_hari, alasan, alamat_cuti, lampiran_url, status, created_at, updated_at)
       VALUES
         (${body.nip}, ${type}, ${body.startDate}, ${body.endDate},
-         ${body.days}, ${body.reason}, ${body.address},
+         ${workingDays}, ${body.reason}, ${body.address},
          ${body.attachment?.dataUrl ?? null}, 'pending_admin',
          CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `);
@@ -108,7 +116,7 @@ export async function POST(request: Request) {
         AND u.no_whatsapp <> ''
         AND (u.peran = 'admin_hr' OR ur.peran = 'admin_hr')
     `);
-    const message = `📋 *Pengajuan Cuti Baru Menunggu Verifikasi Admin*\n\nPegawai: ${applicant[0]?.nama ?? body.nip}\nNIP: ${body.nip}\nJenis cuti: ${body.type}\nTanggal: ${body.startDate} s/d ${body.endDate}\nDurasi: ${body.days} hari\n\nSilakan buka SI CUTE untuk memeriksa dokumen dan mengisi nomor surat.`;
+    const message = `📋 *Pengajuan Cuti Baru Menunggu Verifikasi Admin*\n\nPegawai: ${applicant[0]?.nama ?? body.nip}\nNIP: ${body.nip}\nJenis cuti: ${body.type}\nTanggal: ${body.startDate} s/d ${body.endDate}\nDurasi: ${workingDays} hari kerja\n\nSilakan buka SI CUTE untuk memeriksa dokumen dan mengisi nomor surat.`;
 
     await Promise.all(
       admins.map(async (admin) => {

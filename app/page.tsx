@@ -541,7 +541,7 @@ function diffDays(start: string, end: string, holidays: HolidayDate[] = []) {
     workingDays += 1;
   }
 
-  return Math.max(workingDays, 1);
+  return workingDays;
 }
 
 function buildVerificationPayload(
@@ -897,6 +897,7 @@ function HomeContent() {
   useEffect(() => {
     if (!authChecked) return;
     loadInitialDashboard();
+    loadHolidayDates();
   }, [authChecked, viewRole, activeAccountNip]);
 
   useEffect(() => {

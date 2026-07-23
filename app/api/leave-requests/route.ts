@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 
 import { GET as getDashboard } from "@/app/api/dashboard/route";
+import { invalidateDashboardCache } from "@/lib/dashboard-cache";
 import { db } from "@/lib/db/client";
 import { sendWhatsApp } from "@/lib/whatsapp";
 import { ensureRequestSignatures, saveRequestSignature } from "@/lib/request-signatures";
@@ -136,6 +137,7 @@ export async function POST(request: Request) {
         }
       }),
     );
+    invalidateDashboardCache();
     return GET();
   } catch (error) {
     return NextResponse.json(
@@ -165,8 +167,15 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const currentRows = await db.all<{ status: string; noSurat: string | null }>(sql`
-      SELECT status, no_surat AS noSurat FROM leave_requests WHERE id = ${numericId}
+    const currentRows = await db.all<{
+      status: string;
+      noSurat: string | null;
+      nip: string;
+      jenisCuti: string;
+      jumlahHari: number;
+    }>(sql`
+      SELECT status, no_surat AS noSurat, nip, jenis_cuti AS jenisCuti, jumlah_hari AS jumlahHari
+      FROM leave_requests WHERE id = ${numericId}
     `);
     const currentStatus = currentRows[0]?.status;
     await ensureRequestSignatures();
@@ -201,6 +210,42 @@ export async function PATCH(request: Request) {
         { error: "Nomor surat belum diisi Admin. Pengajuan belum dapat diteruskan." },
         { status: 400 },
       );
+    }
+
+    // Kuota hanya dipotong sekali: saat PyB menyetujui cuti tahunan.
+    // Baris kuota diurutkan dari tahun terlama supaya saldo carry-over habis lebih dahulu.
+    if (
+      currentStatus === "pending_pejabat" &&
+      status === "disetujui" &&
+      currentRows[0]?.jenisCuti === "tahunan"
+    ) {
+      let remainingDays = Number(currentRows[0].jumlahHari);
+      const quotas = await db.all<{ id: number; sisaKuota: number }>(sql`
+        SELECT id, sisa_kuota AS sisaKuota
+        FROM leave_quotas
+        WHERE nip = ${currentRows[0].nip} AND sisa_kuota > 0
+        ORDER BY tahun ASC, id ASC
+      `);
+      const deductions = quotas.map((quota) => {
+        const days = Math.min(Number(quota.sisaKuota), remainingDays);
+        remainingDays -= days;
+        return { id: Number(quota.id), days };
+      }).filter((deduction) => deduction.days > 0);
+
+      if (remainingDays > 0) {
+        return NextResponse.json(
+          { error: "Sisa cuti tahunan pegawai tidak cukup untuk disetujui." },
+          { status: 400 },
+        );
+      }
+
+      for (const deduction of deductions) {
+        await db.run(sql`
+          UPDATE leave_quotas
+          SET sisa_kuota = sisa_kuota - ${deduction.days}, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ${deduction.id} AND sisa_kuota >= ${deduction.days}
+        `);
+      }
     }
 
     if (adminApproval && body.noSurat?.trim()) {
@@ -416,6 +461,7 @@ export async function PATCH(request: Request) {
         );
       }
     }
+    invalidateDashboardCache();
     return GET();
   } catch (error) {
     return NextResponse.json(
@@ -432,6 +478,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "ID tidak valid." }, { status: 400 });
     }
     await db.run(sql`DELETE FROM leave_requests WHERE id = ${id}`);
+    invalidateDashboardCache();
     return GET();
   } catch (error) {
     return NextResponse.json(

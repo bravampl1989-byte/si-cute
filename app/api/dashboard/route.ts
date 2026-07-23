@@ -2,16 +2,15 @@ import { NextResponse } from "next/server";
 
 import { client, isDatabaseConfigured } from "@/lib/db/client";
 import { ensureRequestSignatures } from "@/lib/request-signatures";
+import {
+  dashboardCacheSeconds,
+  getDashboardCache,
+  setDashboardCache,
+} from "@/lib/dashboard-cache";
 
 export const dynamic = "force-dynamic";
 
 type Row = Record<string, string | number | null>;
-
-const dashboardCache = new Map<
-  string,
-  { expiresAt: number; payload: Record<string, unknown> }
->();
-const dashboardCacheSeconds = 20;
 
 function dashboardResponse(payload: Record<string, unknown>) {
   const response = NextResponse.json(payload);
@@ -69,9 +68,9 @@ export async function GET(request: Request) {
     const role = searchParams.get("role") ?? "admin";
     const nip = searchParams.get("nip")?.trim() ?? "";
     const cacheKey = `${role}:${nip}`;
-    const cached = dashboardCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return dashboardResponse(cached.payload);
+    const cached = getDashboardCache(cacheKey);
+    if (cached) {
+      return dashboardResponse(cached);
     }
 
     // The dashboard is read by several roles.  Sending every leave request to
@@ -279,10 +278,7 @@ export async function GET(request: Request) {
       employees,
       requests,
     };
-    dashboardCache.set(cacheKey, {
-      expiresAt: Date.now() + dashboardCacheSeconds * 1000,
-      payload,
-    });
+    setDashboardCache(cacheKey, payload);
     return dashboardResponse(payload);
   } catch (error) {
     return NextResponse.json(

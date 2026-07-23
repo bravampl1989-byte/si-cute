@@ -1897,8 +1897,6 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       };
       return `${year}-${monthMap[month] ?? "01"}-${day.padStart(2, "0")}`;
     };
-    const mark = (label: string) =>
-      label.toLowerCase().includes(selectedLeaveType.toLowerCase()) ? "✓" : "";
     const isSelectedLeave = (label: string) =>
       label.toLowerCase().includes(selectedLeaveType.toLowerCase());
     const drawCell = (
@@ -1917,6 +1915,17 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       pdf.text(lines, tx, y + Math.min(h - 1.5, 4.2), {
         align: options?.align ?? "left",
       });
+    };
+    // jsPDF's built-in Helvetica does not contain the Unicode ✓ glyph.
+    // Draw the check with PDF lines so it prints identically in every viewer.
+    const drawCheck = (x: number, y: number, w: number, h: number) => {
+      const centerX = x + w / 2;
+      const centerY = y + h / 2;
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setLineWidth(0.6);
+      pdf.line(centerX - 2.2, centerY, centerX - 0.6, centerY + 1.6);
+      pdf.line(centerX - 0.6, centerY + 1.6, centerX + 2.7, centerY - 2);
+      pdf.setLineWidth(0.25);
     };
     const sectionTitle = (title: string, y: number) => {
       pdf.setFillColor(235, 235, 235);
@@ -1967,11 +1976,14 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
 
       sectionTitle("II. JENIS CUTI YANG DIAMBIL", 96);
       drawCell("1. CUTI TAHUNAN", 15, 101, 160, 6);
-      drawCell(isSelectedLeave("Tahunan") ? "✓" : "", 175, 101, 20, 6, { align: "center", bold: true, fontSize: 9 });
+      drawCell("", 175, 101, 20, 6, { align: "center" });
+      if (isSelectedLeave("Tahunan")) drawCheck(175, 101, 20, 6);
       drawCell("2. CUTI SAKIT", 15, 107, 160, 6);
-      drawCell(isSelectedLeave("Sakit") ? "✓" : "", 175, 107, 20, 6, { align: "center", bold: true, fontSize: 9 });
+      drawCell("", 175, 107, 20, 6, { align: "center" });
+      if (isSelectedLeave("Sakit")) drawCheck(175, 107, 20, 6);
       drawCell("3. CUTI MELAHIRKAN", 15, 113, 160, 6);
-      drawCell(isSelectedLeave("Melahirkan") ? "✓" : "", 175, 113, 20, 6, { align: "center", bold: true, fontSize: 9 });
+      drawCell("", 175, 113, 20, 6, { align: "center" });
+      if (isSelectedLeave("Melahirkan")) drawCheck(175, 113, 20, 6);
 
       sectionTitle("IV. LAMANYA CUTI", 124);
       drawCell("Selama", 15, 129, 25, 7, { bold: true });
@@ -2017,8 +2029,10 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       drawCell("DISETUJUI", 15, 243, 60, 6, { bold: true, align: "center" });
       drawCell("PERUBAHAN", 75, 243, 60, 6, { bold: true, align: "center" });
       drawCell("DITANGGUHKAN", 135, 243, 60, 6, { bold: true, align: "center" });
-      drawCell(["Pending Pejabat", "Disetujui"].includes(request.status) ? "✓" : "", 15, 249, 60, 6, { align: "center", bold: true, fontSize: 8 });
-      drawCell(request.status === "Perbaikan" ? "✓" : "", 75, 249, 60, 6, { align: "center", bold: true, fontSize: 8 });
+      drawCell("", 15, 249, 60, 6, { align: "center" });
+      if (["Pending Pejabat", "Disetujui"].includes(request.status)) drawCheck(15, 249, 60, 6);
+      drawCell("", 75, 249, 60, 6, { align: "center" });
+      if (request.status === "Perbaikan") drawCheck(75, 249, 60, 6);
       drawCell("", 135, 249, 60, 6);
       drawCell("", 15, 255, 80, 21);
       drawCell("", 95, 255, 100, 21);
@@ -2040,7 +2054,8 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       drawCell("DISETUJUI", 15, 285, 60, 5, { bold: true, align: "center", fontSize: 5.8 });
       drawCell("PERUBAHAN", 75, 285, 60, 5, { bold: true, align: "center", fontSize: 5.8 });
       drawCell("DITANGGUHKAN", 135, 285, 60, 5, { bold: true, align: "center", fontSize: 5.8 });
-      drawCell(request.status === "Disetujui" ? "✓" : "", 15, 290, 60, 5, { align: "center", bold: true, fontSize: 8 });
+      drawCell("", 15, 290, 60, 5, { align: "center" });
+      if (request.status === "Disetujui") drawCheck(15, 290, 60, 5);
       drawCell("", 75, 290, 60, 5);
       drawCell("", 135, 290, 60, 5);
 
@@ -2095,9 +2110,11 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     leaveRows.forEach((row, index) => {
       const y = 81 + index * 6;
       drawCell(row[0], 15, y, 75, 6);
-      drawCell(mark(row[0]), 90, y, 15, 6, { align: "center", bold: true });
+      drawCell("", 90, y, 15, 6, { align: "center" });
+      if (isSelectedLeave(row[0])) drawCheck(90, y, 15, 6);
       drawCell(row[1], 105, y, 75, 6);
-      drawCell(mark(row[1]), 180, y, 15, 6, { align: "center", bold: true });
+      drawCell("", 180, y, 15, 6, { align: "center" });
+      if (isSelectedLeave(row[1])) drawCheck(180, y, 15, 6);
     });
 
     sectionTitle("III. ALASAN CUTI", 102);
@@ -2162,17 +2179,15 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     drawCell("PERUBAHAN", 60, 223, 45, 6, { bold: true, align: "center" });
     drawCell("DITANGGUHKAN", 105, 223, 45, 6, { bold: true, align: "center" });
     drawCell("TIDAK DISETUJUI", 150, 223, 45, 6, { bold: true, align: "center" });
-    drawCell(
-      ["Pending Pejabat", "Disetujui"].includes(request.status) ? "✓" : "",
-      15,
-      229,
-      45,
-      6,
-      { align: "center", bold: true, fontSize: 9 },
-    );
-    drawCell(request.status === "Perbaikan" ? "✓" : "", 60, 229, 45, 6, { align: "center", bold: true, fontSize: 9 });
+    drawCell("", 15, 229, 45, 6, { align: "center" });
+    if (["Pending Pejabat", "Disetujui"].includes(request.status)) {
+      drawCheck(15, 229, 45, 6);
+    }
+    drawCell("", 60, 229, 45, 6, { align: "center" });
+    if (request.status === "Perbaikan") drawCheck(60, 229, 45, 6);
     drawCell("", 105, 229, 45, 6, { align: "center" });
-    drawCell(request.status === "Ditolak" ? "✓" : "", 150, 229, 45, 6, { align: "center", bold: true, fontSize: 9 });
+    drawCell("", 150, 229, 45, 6, { align: "center" });
+    if (request.status === "Ditolak") drawCheck(150, 229, 45, 6);
     drawCell("", 15, 235, 90, 24);
     drawCell("", 105, 235, 90, 24);
 
@@ -2207,10 +2222,12 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     drawCell("PERUBAHAN", 60, 267, 45, 5, { bold: true, align: "center", fontSize: 5.8 });
     drawCell("DITANGGUHKAN", 105, 267, 45, 5, { bold: true, align: "center", fontSize: 5.8 });
     drawCell("TIDAK DISETUJUI", 150, 267, 45, 5, { bold: true, align: "center", fontSize: 5.8 });
-    drawCell(request.status === "Disetujui" ? "✓" : "", 15, 272, 45, 5, { align: "center", bold: true, fontSize: 8 });
+    drawCell("", 15, 272, 45, 5, { align: "center" });
+    if (request.status === "Disetujui") drawCheck(15, 272, 45, 5);
     drawCell("", 60, 272, 45, 5, { align: "center" });
     drawCell("", 105, 272, 45, 5, { align: "center" });
-    drawCell(request.status === "Ditolak" ? "✓" : "", 150, 272, 45, 5, { align: "center", bold: true, fontSize: 8 });
+    drawCell("", 150, 272, 45, 5, { align: "center" });
+    if (request.status === "Ditolak") drawCheck(150, 272, 45, 5);
     drawCell("", 15, 277, 90, 19);
     drawCell("", 105, 277, 90, 19);
     pdf.setFont("helvetica", "normal");

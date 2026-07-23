@@ -699,7 +699,7 @@ function HomeContent() {
     if (activeTab !== "admin") return;
     setEmployeeSearch("");
     setEmployeePage(1);
-  }, [activeTab]);
+  }, [activeTab, viewRole, activeAccountNip]);
 
   useEffect(() => {
     fetch("/api/admin/whatsapp-settings")
@@ -3239,7 +3239,10 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                       <Input
                         id="employee-search"
                         name="employee-search-manual"
-                        autoComplete="off"
+                        autoComplete="new-password"
+                        data-1p-ignore="true"
+                        data-lpignore="true"
+                        data-bwignore="true"
                         placeholder="Ketik nama atau NIP pegawai"
                         value={employeeSearch}
                         onChange={(event) => {

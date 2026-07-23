@@ -124,6 +124,7 @@ const leaveTypes = [
 const pppkLeaveTypes = ["Cuti Tahunan", "Cuti Sakit", "Cuti Melahirkan"];
 const maxSupportingDocumentSize = 3 * 1024 * 1024;
 const employeeRowsPerPage = 10;
+const historyRowsPerPage = 10;
 
 const monthOptions = [
   "Semua Bulan",
@@ -583,6 +584,7 @@ function HomeContent() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [historyMonth, setHistoryMonth] = useState("Semua Bulan");
   const [historyYear, setHistoryYear] = useState(String(activeFiscalYear));
+  const [historyPage, setHistoryPage] = useState(1);
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [employeePage, setEmployeePage] = useState(1);
   const [historyScope, setHistoryScope] = useState<"bawahan" | "pribadi">(
@@ -1105,6 +1107,23 @@ function HomeContent() {
   const visibleHistory = historySourceRequests.filter((request) =>
     matchesHistoryPeriod(request, historyMonth, historyYear),
   );
+  const historyTotalPages = Math.max(
+    1,
+    Math.ceil(visibleHistory.length / historyRowsPerPage),
+  );
+  const safeHistoryPage = Math.min(historyPage, historyTotalPages);
+  const paginatedHistory = visibleHistory.slice(
+    (safeHistoryPage - 1) * historyRowsPerPage,
+    safeHistoryPage * historyRowsPerPage,
+  );
+  const historyPageStart =
+    visibleHistory.length === 0
+      ? 0
+      : (safeHistoryPage - 1) * historyRowsPerPage + 1;
+  const historyPageEnd = Math.min(
+    safeHistoryPage * historyRowsPerPage,
+    visibleHistory.length,
+  );
   const adminCarryOverTotal = adminEmployees.reduce(
     (total, employee) =>
       total +
@@ -1170,6 +1189,12 @@ function HomeContent() {
       setEmployeePage(employeeTotalPages);
     }
   }, [employeePage, employeeTotalPages]);
+
+  useEffect(() => {
+    if (historyPage > historyTotalPages) {
+      setHistoryPage(historyTotalPages);
+    }
+  }, [historyPage, historyTotalPages]);
 
   const newRequestDays = useMemo(
     () => diffDays(startDate, endDate, holidayDates),
@@ -4041,7 +4066,10 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                       className="flex-1 sm:flex-none"
                       size="sm"
                       variant={historyScope === "bawahan" ? "default" : "ghost"}
-                      onClick={() => setHistoryScope("bawahan")}
+                      onClick={() => {
+                        setHistoryScope("bawahan");
+                        setHistoryPage(1);
+                      }}
                     >
                       <UsersRound />
                       Riwayat Bawahan
@@ -4050,7 +4078,10 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                       className="flex-1 sm:flex-none"
                       size="sm"
                       variant={historyScope === "pribadi" ? "default" : "ghost"}
-                      onClick={() => setHistoryScope("pribadi")}
+                      onClick={() => {
+                        setHistoryScope("pribadi");
+                        setHistoryPage(1);
+                      }}
                     >
                       <UserRound />
                       Riwayat Pribadi
@@ -4060,7 +4091,13 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                 <div className="mb-5 grid gap-3 rounded-md border bg-muted/35 p-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
                   <div className="space-y-2">
                     <Label>Bulan</Label>
-                    <Select value={historyMonth} onValueChange={setHistoryMonth}>
+                    <Select
+                      value={historyMonth}
+                      onValueChange={(value) => {
+                        setHistoryMonth(value);
+                        setHistoryPage(1);
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Pilih bulan" />
                       </SelectTrigger>
@@ -4075,7 +4112,13 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                   </div>
                   <div className="space-y-2">
                     <Label>Tahun</Label>
-                    <Select value={historyYear} onValueChange={setHistoryYear}>
+                    <Select
+                      value={historyYear}
+                      onValueChange={(value) => {
+                        setHistoryYear(value);
+                        setHistoryPage(1);
+                      }}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Pilih tahun" />
                       </SelectTrigger>
@@ -4152,7 +4195,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                           </td>
                         </tr>
                       ) : null}
-                      {visibleHistory.map((request) => (
+                      {paginatedHistory.map((request) => (
                         <tr key={request.id} className="border-b last:border-0">
                           <td className="py-3 font-medium">{request.id}</td>
                           <td className="py-3">{request.employee}</td>
@@ -4247,6 +4290,41 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                     </tbody>
                   </table>
                 </div>
+                {visibleHistory.length > 0 ? (
+                  <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      Menampilkan {historyPageStart}-{historyPageEnd} dari{" "}
+                      {visibleHistory.length} pengajuan • Halaman {safeHistoryPage} dari{" "}
+                      {historyTotalPages}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={safeHistoryPage <= 1}
+                        onClick={() =>
+                          setHistoryPage((current) => Math.max(1, current - 1))
+                        }
+                      >
+                        Sebelumnya
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={safeHistoryPage >= historyTotalPages}
+                        onClick={() =>
+                          setHistoryPage((current) =>
+                            Math.min(historyTotalPages, current + 1),
+                          )
+                        }
+                      >
+                        Berikutnya
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
               </CardContent>
             </Card>
           </TabsContent>

@@ -4030,18 +4030,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                  setSelectedId(request.id);
-                                  setActiveTab("document");
-                                  window.setTimeout(
-                                    () =>
-                                      window.scrollTo({
-                                        top: 520,
-                                        behavior: "smooth",
-                                      }),
-                                    0,
-                                  );
-                                }}
+                                onClick={() => setPdfPreview(request)}
                               >
                                 <FileText />
                                 Preview

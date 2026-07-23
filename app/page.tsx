@@ -1730,7 +1730,12 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
 
   async function downloadPdf(request: LeaveRequest) {
     const { jsPDF } = await import("jspdf");
-    const pdf = new jsPDF();
+    const pdf = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+      compress: true,
+    });
     const requestEmployee = adminEmployees.find(
       (employee) => employee.nip === request.nip,
     );
@@ -1879,7 +1884,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       sectionTitle("VI. ALAMAT SELAMA MENJALANKAN CUTI", 190);
       drawCell(request.address.toUpperCase(), 15, 195, 95, 38);
       drawCell("TELP", 110, 195, 20, 7, { bold: true, align: "center" });
-      drawCell("085234566541", 130, 195, 65, 7, { align: "center" });
+      drawCell(request.applicantPhone || "-", 130, 195, 65, 7, { align: "center" });
       drawCell("", 110, 202, 85, 31);
       pdf.setFontSize(5.6);
       pdf.text("Hormat saya,", 152.5, 207, { align: "center" });

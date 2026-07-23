@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
+import { invalidateDashboardCache } from "@/lib/dashboard-cache";
 import { sendWhatsApp } from "@/lib/whatsapp";
 
 export const dynamic = "force-dynamic";
@@ -115,6 +116,7 @@ Telah diverifikasi admin. Mohon tinjau dan putuskan.`;
       }
     }
 
+    invalidateDashboardCache();
     return NextResponse.json({ ok: true, newStatus });
   } catch (error) {
     return NextResponse.json(

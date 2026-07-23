@@ -2,6 +2,9 @@ import { sql } from "drizzle-orm";
 
 import { db } from "@/lib/db/client";
 
+let checkedYearMonth: string | undefined;
+let currentCheck: Promise<boolean> | undefined;
+
 function getJakartaYearMonth() {
   const parts = new Intl.DateTimeFormat("en-US", {
     year: "numeric",
@@ -16,6 +19,16 @@ function getJakartaYearMonth() {
 // Advances each employee's stored service period once per calendar month.
 export async function ensureServicePeriodsCurrent() {
   const targetYearMonth = getJakartaYearMonth();
+  if (checkedYearMonth === targetYearMonth) return false;
+  if (currentCheck) return currentCheck;
+
+  currentCheck = updateServicePeriods(targetYearMonth).finally(() => {
+    currentCheck = undefined;
+  });
+  return currentCheck;
+}
+
+async function updateServicePeriods(targetYearMonth: string) {
   const [targetYear, targetMonth] = targetYearMonth.split("-").map(Number);
   const employees = await db.all<{
     nip: string;
@@ -52,5 +65,6 @@ export async function ensureServicePeriodsCurrent() {
     `);
     changed = true;
   }
+  checkedYearMonth = targetYearMonth;
   return changed;
 }

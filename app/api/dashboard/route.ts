@@ -66,9 +66,6 @@ function formatDate(value: string | null) {
 
 export async function GET(request: Request) {
   try {
-    if (await ensureServicePeriodsCurrent()) invalidateDashboardCache();
-    await ensureAnnualQuotaRollover();
-    await ensureRequestSignatures();
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role") ?? "admin";
     const nip = searchParams.get("nip")?.trim() ?? "";
@@ -77,6 +74,12 @@ export async function GET(request: Request) {
     if (cached) {
       return dashboardResponse(cached);
     }
+    const [servicePeriodsChanged] = await Promise.all([
+      ensureServicePeriodsCurrent(),
+      ensureAnnualQuotaRollover(),
+      ensureRequestSignatures(),
+    ]);
+    if (servicePeriodsChanged) invalidateDashboardCache();
 
     // The dashboard is read by several roles.  Sending every leave request to
     // every account was the biggest source of unnecessary Turso work.
@@ -171,7 +174,16 @@ export async function GET(request: Request) {
           ORDER BY nama LIMIT 1
         `,
       },
-      { sql: `SELECT request_id, role, signature_data FROM request_signatures` },
+      {
+        sql: `
+          SELECT signatures.request_id, signatures.role, signatures.signature_data
+          FROM request_signatures signatures
+          JOIN leave_requests r ON r.id = signatures.request_id
+          JOIN users u ON u.nip = r.nip
+          WHERE 1 = 1 ${requestScope.sql}
+        `,
+        args: requestScope.args,
+      },
     ], "read");
     const [employeeRows, roleRows, quotaRows, requestRows, pybRows, signatureRows] = results.map(
       (result) => result.rows as unknown as Row[],

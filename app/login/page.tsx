@@ -87,14 +87,18 @@ export default function LoginPage() {
           <h1 className="text-4xl font-semibold leading-tight tracking-normal">
             Pengelolaan cuti yang tertib, transparan, dan mudah dipantau.
           </h1>
-          <p className="mt-5 max-w-md text-base leading-7 text-white/70">
-            Pengajuan dan persetujuan cuti berjenjang sesuai Peraturan BKN
-            Nomor 24 Tahun 2017.
-          </p>
+          <div className="mt-5 max-w-md text-sm leading-6 text-white/70">
+            <p>Pengajuan dan persetujuan cuti berjenjang berpedoman pada:</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              <li>Peraturan Badan Kepegawaian Negara Nomor 7 Tahun 2021.</li>
+              <li>Surat Edaran SEKMA Nomor 13 Tahun 2029.</li>
+              <li>Keputusan SEKMA Nomor 212/SEK/SK.KP5.3/II/2024.</li>
+            </ol>
+          </div>
 
           <div className="mt-10 grid grid-cols-3 gap-3 border-t border-white/15 pt-6">
             <LoginFeature value="2 tingkat" label="Persetujuan" />
-            <LoginFeature value="BKN 2017" label="Ketentuan cuti" />
+            <LoginFeature value="3 regulasi" label="Ketentuan cuti" />
             <LoginFeature value="WhatsApp" label="Notifikasi" />
           </div>
         </div>

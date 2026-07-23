@@ -624,6 +624,7 @@ function HomeContent() {
   const [holidayDate, setHolidayDate] = useState(() => getJakartaDateInput());
   const [holidayLabel, setHolidayLabel] = useState("Libur nasional");
   const [holidayDates, setHolidayDates] = useState<HolidayDate[]>([]);
+  const [holidayMonth, setHolidayMonth] = useState("Semua Bulan");
   const [isSavingHoliday, setIsSavingHoliday] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
@@ -1281,6 +1282,11 @@ function HomeContent() {
     () => diffDays(startDate, endDate, holidayDates),
     [endDate, holidayDates, startDate],
   );
+  const visibleHolidayDates = holidayDates.filter((holiday) => {
+    if (holidayMonth === "Semua Bulan") return true;
+    const month = String(monthOptions.indexOf(holidayMonth)).padStart(2, "0");
+    return holiday.date.slice(5, 7) === month;
+  });
   const requiresSupportingDocument = leaveType !== "Cuti Tahunan";
   const currentDateText = currentTime
     ? currentTime.toLocaleDateString("id-ID", {
@@ -4144,18 +4150,41 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Daftar Tanggal Libur</CardTitle>
-                  <CardDescription>
-                    Tanggal di bawah ini akan dikecualikan dari hitungan durasi cuti.
-                  </CardDescription>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <CardTitle>Daftar Tanggal Libur</CardTitle>
+                      <CardDescription>
+                        Tanggal di bawah ini akan dikecualikan dari hitungan durasi cuti.
+                      </CardDescription>
+                    </div>
+                    <div className="w-full sm:w-48">
+                      <Label htmlFor="holiday-month" className="mb-2 block text-xs">
+                        Tampilkan bulan
+                      </Label>
+                      <Select value={holidayMonth} onValueChange={setHolidayMonth}>
+                        <SelectTrigger id="holiday-month">
+                          <SelectValue placeholder="Pilih bulan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {monthOptions.map((month) => (
+                            <SelectItem value={month} key={month}>
+                              {month}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {holidayDates.length === 0 ? (
+                  {visibleHolidayDates.length === 0 ? (
                     <div className="rounded-md border border-dashed bg-muted/35 p-5 text-sm text-muted-foreground">
-                      Belum ada tanggal libur tambahan.
+                      {holidayDates.length === 0
+                        ? "Belum ada tanggal libur tambahan."
+                        : `Belum ada tanggal libur pada bulan ${holidayMonth}.`}
                     </div>
                   ) : (
-                    holidayDates.map((holiday) => (
+                    visibleHolidayDates.map((holiday) => (
                       <div
                         key={holiday.date}
                         className="flex flex-col gap-3 rounded-lg border bg-background p-4 sm:flex-row sm:items-center sm:justify-between"

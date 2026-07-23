@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { ensureAnnualQuotaRollover } from "@/lib/annual-rollover";
 import { invalidateDashboardCache } from "@/lib/dashboard-cache";
+import { removeExpiredHolidays } from "@/lib/holidays";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export async function GET(request: Request) {
 
   try {
     const applied = await ensureAnnualQuotaRollover();
+    await removeExpiredHolidays();
     if (applied) invalidateDashboardCache();
     return NextResponse.json({ ok: true, applied });
   } catch (error) {

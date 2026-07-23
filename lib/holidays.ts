@@ -20,8 +20,25 @@ export async function ensureHolidaysTable() {
   await holidaysTableReady;
 }
 
+function getJakartaYear() {
+  return Number(
+    new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      timeZone: "Asia/Jakarta",
+    }).format(new Date()),
+  );
+}
+
+// Holiday dates apply only to their calendar year. Old records are removed on
+// the first request in a new year, and by the annual Vercel cron at 00.01 WIB.
+export async function removeExpiredHolidays(year = getJakartaYear()) {
+  await ensureHolidaysTable();
+  await db.run(sql`DELETE FROM holidays WHERE date < ${`${year}-01-01`}`);
+}
+
 export async function getHolidayDates() {
   await ensureHolidaysTable();
+  await removeExpiredHolidays();
   const rows = await db.all<HolidayDate>(sql`
     SELECT date, label FROM holidays ORDER BY date ASC
   `);

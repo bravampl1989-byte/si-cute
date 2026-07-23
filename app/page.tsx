@@ -126,6 +126,7 @@ const maxSupportingDocumentSize = 3 * 1024 * 1024;
 const employeeRowsPerPage = 10;
 const historyRowsPerPage = 10;
 const approvalRowsPerPage = 10;
+const notificationAuditRowsPerPage = 10;
 
 const monthOptions = [
   "Semua Bulan",
@@ -587,6 +588,7 @@ function HomeContent() {
   const [historyYear, setHistoryYear] = useState(String(activeFiscalYear));
   const [historyPage, setHistoryPage] = useState(1);
   const [approvalPage, setApprovalPage] = useState(1);
+  const [notificationAuditPage, setNotificationAuditPage] = useState(1);
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [employeePage, setEmployeePage] = useState(1);
   const [historyScope, setHistoryScope] = useState<"bawahan" | "pribadi">(
@@ -1180,6 +1182,50 @@ function HomeContent() {
   const adminInvalidWhatsapp = adminEmployees.filter(
     (employee) => !employee.whatsappNumber,
   );
+  const notificationAuditLogs = [
+    ...(requests.length > 0
+      ? [
+          {
+            id: "new-requests",
+            title: "Pengajuan baru",
+            detail: `${requests.length} pengajuan tercatat`,
+            status: "Berhasil",
+          },
+          {
+            id: "final-pdf",
+            title: "PDF final",
+            detail: `${adminFinalPdfTotal} dokumen final`,
+            status: adminFinalPdfTotal > 0 ? "Berhasil" : "Perlu cek",
+          },
+        ]
+      : []),
+    ...adminInvalidWhatsapp.map((employee) => ({
+      id: `invalid-whatsapp-${employee.nip}`,
+      title: "Nomor pegawai",
+      detail: `${employee.name} perlu validasi nomor`,
+      status: "Perlu cek",
+    })),
+  ];
+  const notificationAuditTotalPages = Math.max(
+    1,
+    Math.ceil(notificationAuditLogs.length / notificationAuditRowsPerPage),
+  );
+  const safeNotificationAuditPage = Math.min(
+    notificationAuditPage,
+    notificationAuditTotalPages,
+  );
+  const paginatedNotificationAuditLogs = notificationAuditLogs.slice(
+    (safeNotificationAuditPage - 1) * notificationAuditRowsPerPage,
+    safeNotificationAuditPage * notificationAuditRowsPerPage,
+  );
+  const notificationAuditPageStart =
+    notificationAuditLogs.length === 0
+      ? 0
+      : (safeNotificationAuditPage - 1) * notificationAuditRowsPerPage + 1;
+  const notificationAuditPageEnd = Math.min(
+    safeNotificationAuditPage * notificationAuditRowsPerPage,
+    notificationAuditLogs.length,
+  );
   const normalizedEmployeeSearch = employeeSearch.trim().toLowerCase();
   const filteredAdminEmployees = normalizedEmployeeSearch
     ? adminEmployees.filter((employee) =>
@@ -1224,6 +1270,12 @@ function HomeContent() {
       setApprovalPage(approvalTotalPages);
     }
   }, [approvalPage, approvalTotalPages]);
+
+  useEffect(() => {
+    if (notificationAuditPage > notificationAuditTotalPages) {
+      setNotificationAuditPage(notificationAuditTotalPages);
+    }
+  }, [notificationAuditPage, notificationAuditTotalPages]);
 
   const newRequestDays = useMemo(
     () => diffDays(startDate, endDate, holidayDates),
@@ -3911,33 +3963,56 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                   <CardDescription>Status pengiriman WhatsApp otomatis.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {requests.length === 0 && adminInvalidWhatsapp.length === 0 ? (
+                  {notificationAuditLogs.length === 0 ? (
                     <div className="rounded-md border border-dashed bg-muted/35 p-4 text-sm text-muted-foreground">
                       Belum ada riwayat notifikasi WhatsApp.
                     </div>
                   ) : null}
-                  {requests.length > 0 ? (
-                    <>
-                      <AdminLog
-                        title="Pengajuan baru"
-                        detail={`${requests.length} pengajuan tercatat`}
-                        status="Berhasil"
-                      />
-                      <AdminLog
-                        title="PDF final"
-                        detail={`${adminFinalPdfTotal} dokumen final`}
-                        status={adminFinalPdfTotal > 0 ? "Berhasil" : "Perlu cek"}
-                      />
-                    </>
-                  ) : null}
-                  {adminInvalidWhatsapp.map((employee) => (
+                  {paginatedNotificationAuditLogs.map((log) => (
                     <AdminLog
-                      key={employee.nip}
-                      title="Nomor pegawai"
-                      detail={`${employee.name} perlu validasi nomor`}
-                      status="Perlu cek"
+                      key={log.id}
+                      title={log.title}
+                      detail={log.detail}
+                      status={log.status}
                     />
                   ))}
+                  {notificationAuditLogs.length > 0 ? (
+                    <div className="flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                      <span>
+                        Menampilkan {notificationAuditPageStart}-{notificationAuditPageEnd} dari{" "}
+                        {notificationAuditLogs.length} notifikasi • Halaman{" "}
+                        {safeNotificationAuditPage} dari {notificationAuditTotalPages}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={safeNotificationAuditPage <= 1}
+                          onClick={() =>
+                            setNotificationAuditPage((current) =>
+                              Math.max(1, current - 1),
+                            )
+                          }
+                        >
+                          Sebelumnya
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={safeNotificationAuditPage >= notificationAuditTotalPages}
+                          onClick={() =>
+                            setNotificationAuditPage((current) =>
+                              Math.min(notificationAuditTotalPages, current + 1),
+                            )
+                          }
+                        >
+                          Berikutnya
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             </section>

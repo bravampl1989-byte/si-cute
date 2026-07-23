@@ -84,6 +84,7 @@ type LeaveRequest = {
   start: string;
   end: string;
   submittedAt: string;
+  pybApprovedAt?: string | null;
   serviceYearsAtSubmission: number;
   serviceMonthsAtSubmission: number;
   days: number;
@@ -1756,7 +1757,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       ["3. Cuti Sakit", "4. Cuti Melahirkan"],
       ["5. Cuti Karena Alasan Penting", "6. Cuti di Luar Tanggungan Negara"],
     ];
-    const submissionDate = request.submittedAt;
+    const decisionDate = request.pybApprovedAt ?? request.submittedAt;
     const ymd = (dateText: string) => {
       const [day, month, year] = dateText.split(" ");
       const monthMap: Record<string, string> = {
@@ -1817,7 +1818,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
         8,
       );
       pdf.setFontSize(7);
-      pdf.text("Sampang, " + submissionDate, 130, 32);
+      pdf.text("Sampang, " + decisionDate, 130, 32);
       pdf.text(["Yth. Ketua Pengadilan Agama Sampang", "Di", "Sampang"], 122, 41);
 
       pdf.setFont("helvetica", "bold");
@@ -1941,7 +1942,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       8,
     );
     pdf.setFontSize(7);
-    pdf.text("Sampang, " + submissionDate, 130, 25);
+    pdf.text("Sampang, " + decisionDate, 130, 25);
     pdf.text(["Yth. Ketua Pengadilan Agama Sampang", "di", "Sampang"], 122, 34);
 
     pdf.setFont("helvetica", "bold");
@@ -5573,7 +5574,7 @@ function DispositionSheet({
             <p>SURAT EDARAN SEKRETARIS MAHKAMAH AGUNG</p>
             <p>REPUBLIK INDONESIA</p>
             <p>NOMOR 13 TAHUN 2019</p>
-            <p className="mt-4">Sampang, {request.submittedAt}</p>
+            <p className="mt-4">Sampang, {request.pybApprovedAt ?? request.submittedAt}</p>
             <p className="mt-4">Yth. Ketua Pengadilan Agama Sampang</p>
             <p>di</p>
             <p>Sampang</p>
@@ -5935,7 +5936,7 @@ function PppkDispositionSheet({
             <p>REPUBLIK INDONESIA</p>
             <p>NOMOR : 212/SEK/SK.KP5.3/II/2024</p>
             <p>TANGGAL : 23 Februari 2024</p>
-            <p className="mt-4">Sampang, {request.submittedAt}</p>
+            <p className="mt-4">Sampang, {request.pybApprovedAt ?? request.submittedAt}</p>
             <p className="mt-4">Yth. Ketua Pengadilan Agama Sampang</p>
             <p>Di</p>
             <p>Sampang</p>

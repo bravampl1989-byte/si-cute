@@ -52,7 +52,7 @@ const statusLabels: Record<string, string> = {
 
 function formatDate(value: string | null) {
   if (!value) return "-";
-  const date = new Date(value.includes("T") ? value : `${value}T00:00:00`);
+  const date = new Date(`${value.slice(0, 10)}T00:00:00`);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat("id-ID", {
     day: "numeric",
@@ -131,6 +131,14 @@ export async function GET(request: Request) {
                  r.jumlah_hari, r.alasan, r.alamat_cuti, r.lampiran_url, r.no_surat, r.status,
                  r.created_at, u.nama, u.no_whatsapp, u.masa_kerja_tahun, u.masa_kerja_bulan,
                  COALESCE(a.nama, '-') AS atasan_nama,
+                 (
+                   SELECT timestamp FROM approvals pyb_approval
+                   WHERE pyb_approval.request_id = r.id
+                     AND pyb_approval.tahapan = 'tingkat_2_pejabat'
+                     AND pyb_approval.keputusan = 'disetujui'
+                   ORDER BY pyb_approval.timestamp DESC, pyb_approval.id DESC
+                   LIMIT 1
+                 ) AS pyb_approved_at,
                  ap.catatan
           FROM leave_requests r
           JOIN users u ON u.nip = r.nip
@@ -237,6 +245,9 @@ export async function GET(request: Request) {
         start: formatDate(String(row.tgl_mulai)),
         end: formatDate(String(row.tgl_selesai)),
         submittedAt: formatDate(createdAt),
+        pybApprovedAt: row.pyb_approved_at
+          ? formatDate(String(row.pyb_approved_at))
+          : null,
         serviceYearsAtSubmission: Number(row.masa_kerja_tahun ?? 0),
         serviceMonthsAtSubmission: Number(row.masa_kerja_bulan ?? 0),
         days: Number(row.jumlah_hari),

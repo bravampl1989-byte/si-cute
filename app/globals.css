@@ -3,23 +3,23 @@
 @tailwind utilities;
 
 :root {
-  --background: 220 38% 97%;
-  --foreground: 224 30% 18%;
+  --background: 216 33% 97%;
+  --foreground: 222 47% 16%;
   --card: 0 0% 100%;
-  --card-foreground: 224 30% 18%;
-  --primary: 244 66% 60%;
+  --card-foreground: 222 47% 16%;
+  --primary: 219 84% 47%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 221 38% 94%;
-  --secondary-foreground: 224 30% 24%;
-  --muted: 220 30% 95%;
-  --muted-foreground: 221 14% 46%;
-  --accent: 174 66% 94%;
-  --accent-foreground: 174 76% 24%;
+  --secondary: 216 42% 95%;
+  --secondary-foreground: 222 47% 20%;
+  --muted: 216 42% 96%;
+  --muted-foreground: 219 18% 44%;
+  --accent: 214 92% 95%;
+  --accent-foreground: 219 84% 32%;
   --destructive: 0 73% 50%;
   --destructive-foreground: 0 0% 100%;
-  --border: 222 24% 88%;
-  --input: 222 24% 88%;
-  --ring: 244 66% 60%;
+  --border: 218 29% 88%;
+  --input: 218 29% 88%;
+  --ring: 219 84% 47%;
   --radius: 0.5rem;
 }
 
@@ -29,9 +29,7 @@
 
 body {
   min-height: 100vh;
-  background:
-    linear-gradient(135deg, rgba(92, 98, 229, 0.08) 0%, rgba(255, 255, 255, 0) 34%),
-    linear-gradient(180deg, #fbfcff 0%, hsl(var(--background)) 48%, #eef2f8 100%);
+  background: #f4f7fb;
   color: hsl(var(--foreground));
   font-family:
     Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -39,217 +37,6 @@ body {
 }
 
 .app-surface {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.88)),
-    hsl(var(--background));
-  box-shadow: 0 18px 48px rgba(40, 48, 84, 0.08);
-}
-
-.sofia-theme header.sticky {
-  border-bottom-color: rgba(213, 219, 234, 0.9);
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 10px 28px rgba(32, 39, 68, 0.08);
-}
-
-.sofia-theme .app-surface,
-.sofia-theme [class*="shadow-sm"] {
-  box-shadow: 0 16px 38px rgba(42, 51, 89, 0.08);
-}
-
-.sofia-theme .rounded-lg,
-.sofia-theme .rounded-md {
-  border-radius: 8px;
-}
-
-.sofia-theme button,
-.sofia-theme [role="tab"] {
-  letter-spacing: 0;
-}
-
-.sofia-theme [role="tab"][data-state="active"] {
-  color: hsl(var(--primary));
-  box-shadow: 0 8px 18px rgba(92, 98, 229, 0.12);
-}
-
-.sofia-theme input,
-.sofia-theme [role="combobox"],
-.sofia-theme textarea {
-  background-color: rgba(255, 255, 255, 0.92);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-}
-
-.sofia-theme .dashboard-accent {
-  background:
-    linear-gradient(135deg, rgba(92, 98, 229, 0.95), rgba(21, 179, 163, 0.92)),
-    hsl(var(--primary));
-  color: white;
-}
-
-.scrollbar-soft {
-  scrollbar-color: rgba(92, 98, 229, 0.38) transparent;
-}
-
-.scrollbar-soft::-webkit-scrollbar {
-  height: 8px;
-  width: 8px;
-}
-
-.scrollbar-soft::-webkit-scrollbar-thumb {
-  background: rgba(92, 98, 229, 0.32);
-  border-radius: 999px;
-}
-
-::selection {
-  background: rgba(92, 98, 229, 0.18);
-}
-
-table th,
-table td {
-  vertical-align: middle;
-}
-
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-.leave-scene {
-  background: #eef1ff;
-}
-
-.leave-status-dot {
-  animation: leave-status-pulse 2s ease-in-out infinite;
-}
-
-.leave-sun {
-  animation: leave-sun-glow 4s ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-.leave-cloud {
-  animation: leave-cloud-drift 7s ease-in-out infinite alternate;
-}
-
-.leave-cloud-two {
-  animation-delay: -3s;
-  animation-duration: 9s;
-}
-
-.leave-plane {
-  animation: leave-plane-fly 8s ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: center;
-}
-
-.leave-traveler {
-  animation: leave-traveler-bob 1.35s ease-in-out infinite;
-}
-
-.leave-suitcase {
-  animation: leave-suitcase-roll 1.35s ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: 50% 100%;
-}
-
-.leave-wave-arm {
-  animation: leave-arm-wave 1.8s ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: 12% 78%;
-}
-
-.leave-walk-leg {
-  animation: leave-leg-step 1.35s ease-in-out infinite;
-  transform-box: fill-box;
-  transform-origin: 25% 10%;
-}
-
-@keyframes leave-status-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.42);
-  }
-  50% {
-    box-shadow: 0 0 0 5px rgba(16, 185, 129, 0);
-  }
-}
-
-@keyframes leave-sun-glow {
-  0%,
-  100% {
-    opacity: 0.88;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.08);
-  }
-}
-
-@keyframes leave-cloud-drift {
-  from {
-    transform: translateX(-4px);
-  }
-  to {
-    transform: translateX(9px);
-  }
-}
-
-@keyframes leave-plane-fly {
-  0%,
-  100% {
-    transform: translate(-6px, 5px) rotate(-4deg);
-  }
-  50% {
-    transform: translate(14px, -7px) rotate(3deg);
-  }
-}
-
-@keyframes leave-traveler-bob {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-3px);
-  }
-}
-
-@keyframes leave-suitcase-roll {
-  0%,
-  100% {
-    transform: rotate(-1deg);
-  }
-  50% {
-    transform: rotate(2deg) translateY(1px);
-  }
-}
-
-@keyframes leave-arm-wave {
-  0%,
-  100% {
-    transform: rotate(-4deg);
-  }
-  50% {
-    transform: rotate(13deg);
-  }
-}
-
-@keyframes leave-leg-step {
-  0%,
-  100% {
-    transform: rotate(-3deg);
-  }
-  50% {
-    transform: rotate(7deg);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .leave-scene *,
-  .leave-status-dot {
-    animation: none !important;
-  }
+  background: #ffffff;
+  box-shadow: 0 8px 28px rgba(18, 39, 80, 0.07);
 }

@@ -18,8 +18,8 @@ import { PaSampangLogo } from "@/components/pa-sampang-logo";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [nip, setNip] = useState("198904122014032001");
-  const [password, setPassword] = useState("password");
+  const [nip, setNip] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -38,7 +38,12 @@ export default function LoginPage() {
       });
       const result = (await response.json()) as {
         error?: string;
-        user?: { nip: string; nama: string; peran: string };
+        user?: {
+          nip: string;
+          nama: string;
+          peran: string;
+          peranTambahan?: string[];
+        };
       };
 
       if (!response.ok || !result.user) {

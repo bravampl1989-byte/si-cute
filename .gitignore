@@ -6,5 +6,7 @@ node_modules/
 .env.*.local
 local.db
 local.db-*
+si-cute-local.db
 *.log
 drizzle/meta/
+.gh-cli/

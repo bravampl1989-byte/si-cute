@@ -5,6 +5,7 @@ import {
   type ReactNode,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -14,19 +15,25 @@ import {
   CalendarDays,
   CheckCircle2,
   ChevronRight,
+  ClipboardList,
   Copy,
   Clock3,
   Trash2,
   Download,
   Eye,
   EyeOff,
+  FileBarChart2,
   FileCheck2,
   FileText,
+  History,
   HelpCircle,
+  LayoutDashboard,
   LockKeyhole,
   LogOut,
+  Menu,
   MessageCircle,
   Send,
+  Settings,
   ShieldCheck,
   UsersRound,
   UserRound,
@@ -55,10 +62,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 type RequestStatus =
+  | "Pending Admin"
   | "Pending Atasan"
   | "Pending Pejabat"
   | "Disetujui"
@@ -69,6 +77,7 @@ type ViewRole = "pegawai" | "pppk" | "atasan" | "pyb" | "admin";
 
 type LeaveRequest = {
   id: string;
+  dbId?: number;
   employee: string;
   nip: string;
   type: string;
@@ -84,6 +93,17 @@ type LeaveRequest = {
   reviewer: string;
   approver: string;
   note: string;
+  attachmentName?: string | null;
+  attachmentType?: string | null;
+  attachmentUrl?: string | null;
+    noSurat?: string | null;
+};
+
+type SupportingAttachment = {
+  name: string;
+  type: string;
+  size: number;
+  dataUrl: string;
 };
 
 const leaveTypes = [
@@ -96,6 +116,8 @@ const leaveTypes = [
 ];
 
 const pppkLeaveTypes = ["Cuti Tahunan", "Cuti Sakit", "Cuti Melahirkan"];
+const maxSupportingDocumentSize = 3 * 1024 * 1024;
+const employeeRowsPerPage = 10;
 
 const monthOptions = [
   "Semua Bulan",
@@ -132,6 +154,73 @@ function getJakartaYearMonth(date = new Date()) {
   return `${year}-${month}`;
 }
 
+function getJakartaDateInput(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "Asia/Jakarta",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value ?? "1970";
+  const month = parts.find((part) => part.type === "month")?.value ?? "01";
+  const day = parts.find((part) => part.type === "day")?.value ?? "01";
+  return `${year}-${month}-${day}`;
+}
+
+function formatInputDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function readSupportingAttachment(file: File) {
+  return new Promise<SupportingAttachment>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Dokumen pendukung gagal dibaca."));
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("Format dokumen pendukung tidak didukung."));
+        return;
+      }
+
+      resolve({
+        name: file.name,
+        type: file.type || "application/octet-stream",
+        size: file.size,
+        dataUrl: reader.result,
+      });
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function downloadAttachment(request: LeaveRequest) {
+  if (!request.attachmentUrl) return;
+
+  const anchor = document.createElement("a");
+  anchor.href = request.attachmentUrl;
+  anchor.download = request.attachmentName ?? `Lampiran-${request.id}`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+}
+
+function previewAttachment(request: LeaveRequest) {
+  if (!request.attachmentUrl) return;
+
+  const previewWindow = window.open();
+  if (!previewWindow) {
+    downloadAttachment(request);
+    return;
+  }
+
+  previewWindow.document.write(
+    `<iframe src="${request.attachmentUrl}" style="border:0;width:100vw;height:100vh"></iframe>`,
+  );
+  previewWindow.document.close();
+}
+
 const activeFiscalYear = getJakartaFiscalYear();
 const employeeGrade = "PENATA MUDA (III/a)";
 const gradeOptions = [
@@ -154,131 +243,28 @@ const gradeOptions = [
   "PEMBINA UTAMA (IV/e)",
 ];
 
-const initialRequests: LeaveRequest[] = [
-  {
-    id: "CUTI-2026-018",
-    employee: "Rani Kusuma",
-    nip: "198904122014032001",
-    type: "Cuti Tahunan",
-    start: "18 Mei 2026",
-    end: "22 Mei 2026",
-    submittedAt: "11 Mei 2026",
-    serviceYearsAtSubmission: 12,
-    serviceMonthsAtSubmission: 1,
-    days: 5,
-    reason: "Keperluan keluarga di luar kota",
-    address: "Jl. Merdeka No. 18, Bandung",
-    status: "Pending Atasan",
-    reviewer: "Arif Hidayat",
-    approver: "Dewi Lestari",
-    note: "Menunggu telaah atasan langsung",
-  },
-  {
-    id: "CUTI-2026-017",
-    employee: "Bagas Pratama",
-    nip: "199102022015041003",
-    type: "Cuti Sakit",
-    start: "13 Mei 2026",
-    end: "15 Mei 2026",
-    submittedAt: "12 Mei 2026",
-    serviceYearsAtSubmission: 11,
-    serviceMonthsAtSubmission: 2,
-    days: 3,
-    reason: "Pemulihan pasca tindakan medis",
-    address: "Jl. Kenanga No. 2, Sleman",
-    status: "Pending Pejabat",
-    reviewer: "Arif Hidayat",
-    approver: "Dewi Lestari",
-    note: "Surat dokter terlampir",
-  },
-  {
-    id: "CUTI-2026-016",
-    employee: "Nadia Putri",
-    nip: "198811232012122002",
-    type: "Cuti Sakit",
-    start: "4 Mei 2026",
-    end: "6 Mei 2026",
-    submittedAt: "30 April 2026",
-    serviceYearsAtSubmission: 13,
-    serviceMonthsAtSubmission: 4,
-    days: 3,
-    reason: "Pemulihan kesehatan",
-    address: "Jl. Ahmad Yani No. 45, Solo",
-    status: "Disetujui",
-    reviewer: "Arif Hidayat",
-    approver: "Dewi Lestari",
-    note: "Formulir final tersedia",
-  },
-  {
-    id: "CUTI-2026-009",
-    employee: "Rani Kusuma",
-    nip: "198904122014032001",
-    type: "Cuti Tahunan",
-    start: "10 Februari 2026",
-    end: "12 Februari 2026",
-    submittedAt: "3 Februari 2026",
-    serviceYearsAtSubmission: 11,
-    serviceMonthsAtSubmission: 10,
-    days: 3,
-    reason: "Keperluan keluarga",
-    address: "Jl. Pemuda No. 7, Yogyakarta",
-    status: "Disetujui",
-    reviewer: "Arif Hidayat",
-    approver: "Dewi Lestari",
-    note: "Disetujui final dan kuota telah diperbarui",
-  },
-  {
-    id: "CUTI-2025-041",
-    employee: "Rani Kusuma",
-    nip: "198904122014032001",
-    type: "Cuti Sakit",
-    start: "18 November 2025",
-    end: "19 November 2025",
-    submittedAt: "17 November 2025",
-    serviceYearsAtSubmission: 11,
-    serviceMonthsAtSubmission: 7,
-    days: 2,
-    reason: "Istirahat berdasarkan surat keterangan dokter",
-    address: "Jl. Pemuda No. 7, Yogyakarta",
-    status: "Disetujui",
-    reviewer: "Arif Hidayat",
-    approver: "Dewi Lestari",
-    note: "Surat dokter telah diverifikasi",
-  },
-  {
-    id: "CUTI-2026-005",
-    employee: "Arif Hidayat",
-    nip: "198503172008011002",
-    type: "Cuti Tahunan",
-    start: "20 Januari 2026",
-    end: "21 Januari 2026",
-    submittedAt: "13 Januari 2026",
-    serviceYearsAtSubmission: 18,
-    serviceMonthsAtSubmission: 0,
-    days: 2,
-    reason: "Keperluan keluarga",
-    address: "Jl. Veteran No. 12, Marabahan",
-    status: "Disetujui",
-    reviewer: "Dewi Lestari",
-    approver: "Sekretaris Daerah",
-    note: "Disetujui final dan kuota telah diperbarui",
-  },
-];
-
 type AdminEmployee = {
   name: string;
   nip: string;
   role: string;
   roles?: string[];
+  position: string;
   grade: string;
   serviceYears: number;
   serviceMonths: number;
   serviceAsOf: string;
   supervisor: string;
+  approver?: string;
   quotas: { year: number; remaining: number; used: number }[];
   bknMode: string;
   whatsapp: string;
   whatsappNumber: string;
+  accountPassword?: string;
+};
+
+type HolidayDate = {
+  date: string;
+  label: string;
 };
 
 function getEmployeeRoles(employee?: Pick<AdminEmployee, "role" | "roles">) {
@@ -322,11 +308,19 @@ const viewRoleLabels: Record<ViewRole, string> = {
 };
 
 const defaultAccountNipByRole: Record<ViewRole, string> = {
-  pegawai: "198904122014032001",
-  pppk: "198811232012122002",
-  atasan: "198503172008011002",
-  pyb: "197705182001122001",
-  admin: "-",
+  pegawai: "198907192020121001",
+  pppk: "198907192020121001",
+  atasan: "197206132006041019",
+  pyb: "197905292005022001",
+  admin: "198907192020121001",
+};
+
+const apiRoleToViewRole: Record<string, ViewRole> = {
+  pegawai: "pegawai",
+  pppk: "pppk",
+  atasan_langsung: "atasan",
+  pejabat_berwenang: "pyb",
+  admin_hr: "admin",
 };
 
 function getEmployeeViewRoles(employee?: Pick<AdminEmployee, "role" | "roles">) {
@@ -396,107 +390,10 @@ function advanceServicePeriods(
   return changed ? updated : employees;
 }
 
-const initialAdminEmployees: AdminEmployee[] = [
-  {
-    name: "Arif Hidayat",
-    nip: "198503172008011002",
-    role: "Atasan Langsung",
-    roles: ["Pegawai", "Atasan Langsung"],
-    grade: "PENATA TINGKAT I (III/d)",
-    serviceYears: 18,
-    serviceMonths: 5,
-    serviceAsOf: "2026-06",
-    supervisor: "Dewi Lestari",
-    quotas: [
-      { year: 2026, remaining: 10, used: 2 },
-      { year: 2025, remaining: 3, used: 9 },
-      { year: 2024, remaining: 0, used: 12 },
-    ],
-    bknMode: "Normal",
-    whatsapp: "Aktif",
-    whatsappNumber: "6281555512345",
-  },
-  {
-    name: "Rani Kusuma",
-    nip: "198904122014032001",
-    role: "Pegawai",
-    roles: ["Pegawai"],
-    grade: employeeGrade,
-    serviceYears: 12,
-    serviceMonths: 2,
-    serviceAsOf: "2026-06",
-    supervisor: "Arif Hidayat",
-    quotas: [
-      { year: 2026, remaining: 9, used: 3 },
-      { year: 2025, remaining: 4, used: 8 },
-      { year: 2024, remaining: 2, used: 10 },
-    ],
-    bknMode: "Normal",
-    whatsapp: "Aktif",
-    whatsappNumber: "6281234567890",
-  },
-  {
-    name: "Bagas Pratama",
-    nip: "199102022015041003",
-    role: "Atasan Langsung",
-    roles: ["Pegawai", "Atasan Langsung"],
-    grade: "PENATA MUDA TINGKAT I (III/b)",
-    serviceYears: 11,
-    serviceMonths: 3,
-    serviceAsOf: "2026-06",
-    supervisor: "Dewi Lestari",
-    quotas: [
-      { year: 2026, remaining: 8, used: 4 },
-      { year: 2025, remaining: 1, used: 11 },
-      { year: 2024, remaining: 0, used: 12 },
-    ],
-    bknMode: "Normal",
-    whatsapp: "Aktif",
-    whatsappNumber: "6281298765432",
-  },
-  {
-    name: "Nadia Putri",
-    nip: "198811232012122002",
-    role: "PPPK",
-    roles: ["PPPK"],
-    grade: "",
-    serviceYears: 13,
-    serviceMonths: 6,
-    serviceAsOf: "2026-06",
-    supervisor: "Arif Hidayat",
-    quotas: [
-      { year: 2026, remaining: 10, used: 2 },
-      { year: 2025, remaining: 6, used: 6 },
-      { year: 2024, remaining: 3, used: 9 },
-    ],
-    bknMode: "Batas 18 hari",
-    whatsapp: "Perlu cek",
-    whatsappNumber: "6281387654321",
-  },
-  {
-    name: "Dewi Lestari",
-    nip: "197705182001122001",
-    role: "Pejabat Berwenang",
-    roles: ["Pegawai", "Pejabat Berwenang"],
-    grade: "PEMBINA (IV/a)",
-    serviceYears: 24,
-    serviceMonths: 6,
-    serviceAsOf: "2026-06",
-    supervisor: "-",
-    quotas: [
-      { year: 2026, remaining: 12, used: 0 },
-      { year: 2025, remaining: 6, used: 0 },
-      { year: 2024, remaining: 6, used: 0 },
-    ],
-    bknMode: "Tidak digunakan 2 tahun",
-    whatsapp: "Aktif",
-    whatsappNumber: "6281122233344",
-  },
-];
-
 const statusStyles: Record<RequestStatus, string> = {
-  "Pending Atasan": "info",
-  "Pending Pejabat": "warning",
+      "Pending Admin": "secondary",
+    "Pending Atasan": "info",
+    "Pending Pejabat": "warning",
   Disetujui: "success",
   Ditolak: "destructive",
   Perbaikan: "outline",
@@ -590,8 +487,7 @@ const fmtDate = (value: string) =>
     year: "numeric",
   }).format(new Date(value));
 
-function getLeaveDocumentNumber(request: LeaveRequest) {
-  const [, month, year] = request.submittedAt.split(" ");
+function getLeaveDocumentSuffix(request: LeaveRequest) {
   const romanMonths: Record<string, string> = {
     Januari: "I",
     Februari: "II",
@@ -606,8 +502,24 @@ function getLeaveDocumentNumber(request: LeaveRequest) {
     November: "XI",
     Desember: "XII",
   };
+  const input = request.submittedAt;
+  const isoMatch = input.match(/(\d{4})-(\d{2})-(\d{2})/);
+  const indonesianMatch = input.match(
+    /(Januari|Februari|Maret|April|Mei|Juni|Juli|Agustus|September|Oktober|November|Desember)\s+(\d{4})/,
+  );
+  const month = isoMatch
+    ? Object.keys(romanMonths)[Number(isoMatch[2]) - 1]
+    : indonesianMatch?.[1];
+  const year = isoMatch?.[1] ?? indonesianMatch?.[2] ?? String(activeFiscalYear);
 
-  return `............/KPA.W13-A31/KP5.3/${romanMonths[month] ?? "-"}/${year ?? activeFiscalYear}`;
+  return `KPA.W13-A31/KP5.3/${romanMonths[month ?? ""] ?? "-"}/${year}`;
+}
+
+function getLeaveDocumentNumber(request: LeaveRequest) {
+  return (
+    request.noSurat?.trim() ||
+    `............/${getLeaveDocumentSuffix(request)}`
+  );
 }
 
 function matchesHistoryPeriod(request: LeaveRequest, month: string, year: string) {
@@ -618,11 +530,25 @@ function matchesHistoryPeriod(request: LeaveRequest, month: string, year: string
   return matchesMonth && matchesYear;
 }
 
-function diffDays(start: string, end: string) {
+function diffDays(start: string, end: string, holidays: HolidayDate[] = []) {
   const a = new Date(start);
   const b = new Date(end);
   const diff = Math.round((b.getTime() - a.getTime()) / 86_400_000) + 1;
-  return Number.isFinite(diff) && diff > 0 ? diff : 1;
+  if (!Number.isFinite(diff) || diff <= 0) return 1;
+
+  const holidaySet = new Set(holidays.map((holiday) => holiday.date));
+  let workingDays = 0;
+
+  for (let index = 0; index < diff; index += 1) {
+    const date = new Date(a);
+    date.setDate(a.getDate() + index);
+    const day = date.getDay();
+    const inputValue = formatInputDate(date);
+    if (day === 0 || day === 6 || holidaySet.has(inputValue)) continue;
+    workingDays += 1;
+  }
+
+  return Math.max(workingDays, 1);
 }
 
 function buildVerificationPayload(
@@ -643,37 +569,36 @@ function buildVerificationPayload(
 function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const currentUserNip = "198904122014032001";
-  const currentSupervisorName = "Arif Hidayat";
-  const currentPybName = "Dewi Lestari";
-  const currentPybNip = "197705182001122001";
   const [viewRole, setViewRole] = useState<ViewRole>("pegawai");
-  const [activeAccountNip, setActiveAccountNip] = useState(currentUserNip);
-  const [adminEmployees, setAdminEmployees] = useState(() =>
-    advanceServicePeriods(
-      ensureAnnualQuotaYear(initialAdminEmployees, activeFiscalYear),
-      getJakartaYearMonth(),
-    ),
+  const [activeAccountNip, setActiveAccountNip] = useState(
+    defaultAccountNipByRole.admin,
   );
-  const [requests, setRequests] = useState(initialRequests);
+  const [adminEmployees, setAdminEmployees] = useState(() =>
+    advanceServicePeriods(ensureAnnualQuotaYear([], activeFiscalYear), getJakartaYearMonth()),
+  );
+  const [requests, setRequests] = useState<LeaveRequest[]>([]);
   const [leaveType, setLeaveType] = useState("Cuti Tahunan");
-  const [startDate, setStartDate] = useState("2026-05-25");
-  const [endDate, setEndDate] = useState("2026-05-27");
-  const [reason, setReason] = useState("Keperluan keluarga");
-  const [address, setAddress] = useState("Jl. Pemuda No. 7, Yogyakarta");
+  const [startDate, setStartDate] = useState(() => getJakartaDateInput());
+  const [endDate, setEndDate] = useState(() => getJakartaDateInput());
+  const [reason, setReason] = useState("");
+  const [address, setAddress] = useState("");
   const [supportingDocument, setSupportingDocument] = useState<File | null>(
     null,
   );
-  const [selectedId, setSelectedId] = useState(initialRequests[0].id);
-  const [activeTab, setActiveTab] = useState("approval");
+  const [selectedId, setSelectedId] = useState("");
+  const [approvalNoSurat, setApprovalNoSurat] = useState("");
+  const [activeTab, setActiveTab] = useState("dashboard");
   const [historyMonth, setHistoryMonth] = useState("Semua Bulan");
   const [historyYear, setHistoryYear] = useState(String(activeFiscalYear));
+  const [employeeSearch, setEmployeeSearch] = useState("");
+  const [employeePage, setEmployeePage] = useState(1);
   const [historyScope, setHistoryScope] = useState<"bawahan" | "pribadi">(
     "bawahan",
   );
   const [headerPanel, setHeaderPanel] = useState<
     "help" | "notifications" | "profile" | null
   >(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [dialog, setDialog] = useState<{
     title: string;
@@ -683,6 +608,10 @@ function HomeContent() {
     employee?: AdminEmployee;
   } | null>(null);
   const [toast, setToast] = useState("");
+  const [successPopup, setSuccessPopup] = useState<{
+    title: string;
+    description: string;
+  } | null>(null);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [fonnteToken, setFonnteToken] = useState("");
   const [fonnteTokenStatus, setFonnteTokenStatus] = useState(
@@ -691,33 +620,78 @@ function HomeContent() {
   const [testWaNumber, setTestWaNumber] = useState("6281234567890");
   const [isSavingFonnte, setIsSavingFonnte] = useState(false);
   const [isTestingFonnte, setIsTestingFonnte] = useState(false);
+  const [holidayDate, setHolidayDate] = useState(() => getJakartaDateInput());
+  const [holidayLabel, setHolidayLabel] = useState("Libur nasional");
+  const [holidayDates, setHolidayDates] = useState<HolidayDate[]>([]);
+  const [isSavingHoliday, setIsSavingHoliday] = useState(false);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
+  const [manualSignatures, setManualSignatures] = useState<Record<string, string>>(
+    {},
+  );
 
   useEffect(() => {
     const role = searchParams.get("role");
     const accountNipParam = searchParams.get("nip");
 
+    if (!role) {
+      const savedUser = window.localStorage.getItem("cutipns-user");
+
+      if (!savedUser) {
+        router.replace("/login");
+        return;
+      }
+
+      try {
+        const user = JSON.parse(savedUser) as {
+          nip?: string;
+          peran?: string;
+          peranTambahan?: string[];
+        };
+        const userRoles = user.peranTambahan?.length
+          ? user.peranTambahan
+          : user.peran
+            ? [user.peran]
+            : [];
+        const nextRole =
+          userRoles.map((userRole) => apiRoleToViewRole[userRole]).find(Boolean) ??
+          "pegawai";
+
+        setViewRole(nextRole);
+        setActiveAccountNip(user.nip ?? defaultAccountNipByRole[nextRole]);
+        setActiveTab("dashboard");
+        setAuthChecked(true);
+        return;
+      } catch {
+        window.localStorage.removeItem("cutipns-user");
+        router.replace("/login");
+        return;
+      }
+    }
+
     if (role === "admin") {
       setViewRole("admin");
       setActiveAccountNip(accountNipParam ?? defaultAccountNipByRole.admin);
-      setActiveTab("admin");
+      setActiveTab("dashboard");
     } else if (role === "atasan") {
       setViewRole("atasan");
       setActiveAccountNip(accountNipParam ?? defaultAccountNipByRole.atasan);
-      setActiveTab("approval");
+      setActiveTab("dashboard");
     } else if (role === "pyb") {
       setViewRole("pyb");
       setActiveAccountNip(accountNipParam ?? defaultAccountNipByRole.pyb);
-      setActiveTab("approval");
+      setActiveTab("dashboard");
     } else if (role === "pppk") {
       setViewRole("pppk");
       setActiveAccountNip(accountNipParam ?? defaultAccountNipByRole.pppk);
-      setActiveTab("approval");
+      setActiveTab("dashboard");
     } else {
       setViewRole("pegawai");
       setActiveAccountNip(accountNipParam ?? defaultAccountNipByRole.pegawai);
-      setActiveTab("approval");
+      setActiveTab("dashboard");
     }
-  }, [searchParams]);
+    setAuthChecked(true);
+  }, [router, searchParams]);
 
   useEffect(() => {
     setCurrentTime(new Date());
@@ -734,10 +708,21 @@ function HomeContent() {
       .then((response) => response.json())
       .then(
         (data: {
+          hasDatabaseToken?: boolean;
+          maskedDatabaseToken?: string;
           hasRuntimeToken?: boolean;
           hasEnvToken?: boolean;
           maskedEnvToken?: string;
         }) => {
+          if (data.hasDatabaseToken) {
+            setFonnteTokenStatus(
+              `Token database aktif ${
+                data.maskedDatabaseToken ? `(${data.maskedDatabaseToken})` : ""
+              }`,
+            );
+            return;
+          }
+
           if (data.hasRuntimeToken) {
             setFonnteTokenStatus("Token dashboard aktif");
             return;
@@ -757,6 +742,152 @@ function HomeContent() {
   }, []);
 
   useEffect(() => {
+    const saved = window.localStorage.getItem("cutipns:manual-signatures");
+    if (!saved) return;
+    try {
+      setManualSignatures(JSON.parse(saved) as Record<string, string>);
+    } catch {
+      window.localStorage.removeItem("cutipns:manual-signatures");
+    }
+  }, []);
+
+  async function loadAdminEmployees() {
+    try {
+      setIsLoadingEmployees(true);
+      const response = await fetch("/api/admin/employees");
+      const result = (await response.json()) as {
+        employees?: AdminEmployee[];
+        error?: string;
+      };
+
+      if (!response.ok || !result.employees) {
+        throw new Error(result.error ?? "Data pegawai belum bisa dimuat.");
+      }
+
+      setAdminEmployees(
+        advanceServicePeriods(
+          ensureAnnualQuotaYear(result.employees, activeFiscalYear),
+          getJakartaYearMonth(),
+        ),
+      );
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Data pegawai belum bisa dimuat.",
+      );
+    } finally {
+      setIsLoadingEmployees(false);
+    }
+  }
+
+  async function loadLeaveRequests() {
+    try {
+      const response = await fetch("/api/leave-requests");
+      const result = (await response.json()) as {
+        requests?: LeaveRequest[];
+        error?: string;
+      };
+
+      if (!response.ok || !result.requests) {
+        throw new Error(result.error ?? "Data pengajuan belum bisa dimuat.");
+      }
+
+      setRequests(result.requests);
+      setSelectedId((current) => current || result.requests?.[0]?.id || "");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Data pengajuan belum bisa dimuat.",
+      );
+    }
+  }
+
+  async function loadHolidayDates() {
+    try {
+      const response = await fetch("/api/admin/holidays");
+      const result = (await response.json()) as {
+        holidays?: HolidayDate[];
+        error?: string;
+      };
+
+      if (!response.ok || !result.holidays) {
+        throw new Error(result.error ?? "Tanggal libur belum bisa dimuat.");
+      }
+
+      setHolidayDates(result.holidays);
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Tanggal libur belum bisa dimuat.",
+      );
+    }
+  }
+
+  async function loadInitialDashboard() {
+    const dashboardCacheKey = `cutipns:dashboard:${viewRole}:${activeAccountNip}`;
+    type DashboardResult = {
+      employees?: AdminEmployee[];
+      requests?: Array<LeaveRequest & { databaseId?: number }>;
+      error?: string;
+    };
+    const applyDashboard = (result: DashboardResult) => {
+      if (!result.employees || !result.requests) return false;
+      setAdminEmployees(
+        advanceServicePeriods(
+          ensureAnnualQuotaYear(result.employees, activeFiscalYear),
+          getJakartaYearMonth(),
+        ),
+      );
+      const dashboardRequests = result.requests.map((request) => ({
+        ...request,
+        dbId: request.dbId ?? request.databaseId,
+      }));
+      setRequests(dashboardRequests);
+      setSelectedId((current) => current || dashboardRequests[0]?.id || "");
+      return true;
+    };
+
+    let hasCachedDashboard = false;
+    try {
+      const stored = window.sessionStorage.getItem(dashboardCacheKey);
+      if (stored) {
+        const cached = JSON.parse(stored) as { expiresAt?: number; data?: DashboardResult };
+        if ((cached.expiresAt ?? 0) > Date.now() && cached.data) {
+          hasCachedDashboard = applyDashboard(cached.data);
+        }
+      }
+    } catch {
+      window.sessionStorage.removeItem(dashboardCacheKey);
+    }
+
+    try {
+      setIsLoadingEmployees(!hasCachedDashboard);
+      const dashboardParams = new URLSearchParams({
+        role: viewRole,
+        nip: activeAccountNip,
+      });
+      const response = await fetch(`/api/dashboard?${dashboardParams.toString()}`);
+      const result = (await response.json()) as DashboardResult;
+
+      if (!response.ok || !applyDashboard(result)) {
+        throw new Error(result.error ?? "Data dashboard belum bisa dimuat.");
+      }
+      window.sessionStorage.setItem(
+        dashboardCacheKey,
+        JSON.stringify({ expiresAt: Date.now() + 20_000, data: result }),
+      );
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Data dashboard belum bisa dimuat.",
+      );
+    } finally {
+      setIsLoadingEmployees(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!authChecked) return;
+    loadInitialDashboard();
+  }, [authChecked, viewRole, activeAccountNip]);
+
+  useEffect(() => {
     if (!currentTime) return;
 
     if (getJakartaFiscalYear(currentTime) > activeFiscalYear) {
@@ -768,6 +899,12 @@ function HomeContent() {
       advanceServicePeriods(current, getJakartaYearMonth(currentTime)),
     );
   }, [currentTime]);
+
+  useEffect(() => {
+    if (endDate < startDate) {
+      setEndDate(startDate);
+    }
+  }, [endDate, startDate]);
 
   const availableLeaveTypes =
     viewRole === "pppk" ? pppkLeaveTypes : leaveTypes;
@@ -786,6 +923,11 @@ function HomeContent() {
     (viewRole === "admin" ? "Admin Pembuat Daftar Cuti" : "Pengguna");
   const accountNip = accountEmployee?.nip ?? activeAccountNip;
   const accountSupervisor = accountEmployee?.supervisor ?? "-";
+  const pybEmployee = adminEmployees.find((employee) =>
+    getEmployeeRoles(employee).includes("Pejabat Berwenang"),
+  );
+  const currentPybName = pybEmployee?.name ?? "Pejabat Berwenang";
+  const currentPybNip = pybEmployee?.nip ?? "-";
   const employeeRequests = requests.filter(
     (request) => request.nip === accountNip,
   );
@@ -813,24 +955,47 @@ function HomeContent() {
             : requests;
   const visibleApprovals = dashboardRequests.filter(
     (request) =>
-      viewRole === "atasan"
-        ? request.status === "Pending Atasan" || request.status === "Perbaikan"
+      viewRole === "admin"
+        ? request.status === "Pending Admin"
+        : viewRole === "atasan"
+        ? request.status === "Pending Atasan"
         : viewRole === "pyb"
           ? request.status === "Pending Pejabat"
-          : request.status === "Pending Atasan" ||
-            request.status === "Pending Pejabat" ||
-            request.status === "Perbaikan",
+          : true,
   );
   const selectedPool =
     activeTab === "approval"
       ? visibleApprovals
-      : viewRole === "atasan" && historyScope === "pribadi"
+      : activeTab === "history" && viewRole === "atasan" && historyScope === "pribadi"
         ? supervisorPersonalRequests
         : dashboardRequests;
-  const selected =
+  const selectedRequest =
     selectedPool.find((request) => request.id === selectedId) ??
     selectedPool[0] ??
-    dashboardRequests[0];
+    (activeTab === "approval" ? undefined : dashboardRequests[0]);
+  const hasSelectedRequest = Boolean(selectedRequest);
+  const selected: LeaveRequest =
+    selectedRequest ?? {
+      id: "Belum ada pengajuan",
+      employee: accountName,
+      nip: accountNip,
+      type: "-",
+      start: "-",
+      end: "-",
+      submittedAt: "-",
+      serviceYearsAtSubmission: accountEmployee?.serviceYears ?? 0,
+      serviceMonthsAtSubmission: accountEmployee?.serviceMonths ?? 0,
+      days: 0,
+      reason: "Belum ada pengajuan cuti untuk akun ini.",
+      address: "-",
+      status: "Pending Atasan",
+      reviewer: accountSupervisor,
+      approver: currentPybName,
+      note: "Belum ada pengajuan cuti.",
+    };
+  useEffect(() => {
+    setApprovalNoSurat(selected.noSurat?.split("/")[0]?.trim() || "");
+  }, [selected.id, selected.noSurat]);
   const currentEmployee = accountEmployee;
   const annualQuotaRows =
     currentEmployee?.quotas
@@ -850,12 +1015,16 @@ function HomeContent() {
     )
     .reduce((total, request) => total + request.days, 0);
   const quotaTotal = 12;
-  const pendingLeader = dashboardRequests.filter(
-    (request) => request.status === "Pending Atasan",
-  ).length;
+  const pendingAdmin = dashboardRequests.filter(
+      (request) => request.status === "Pending Admin",
+    ).length;
+    const pendingLeader = dashboardRequests.filter(
+      (request) => request.status === "Pending Atasan",
+    ).length;
   const pendingPyb = dashboardRequests.filter(
     (request) => request.status === "Pending Pejabat",
   ).length;
+  const latestDashboardRequest = dashboardRequests[0];
   const roleLabel = viewRoleLabels[viewRole];
   const accountSwitchRoles = getEmployeeViewRoles(accountEmployee);
   const dashboardTitle =
@@ -941,10 +1110,65 @@ function HomeContent() {
       ),
     0,
   );
+  const adminRoleTotal = new Set(adminEmployees.flatMap((employee) => getEmployeeRoles(employee))).size;
+  const adminCurrentQuotaTotal = adminEmployees.reduce(
+    (total, employee) =>
+      total +
+      (employee.quotas.find((quota) => quota.year === activeFiscalYear)?.remaining ?? 0),
+    0,
+  );
+  const adminFinalPdfTotal = requests.filter(
+    (request) => request.status === "Disetujui",
+  ).length;
+  const adminInvalidWhatsapp = adminEmployees.filter(
+    (employee) => !employee.whatsappNumber,
+  );
+  const normalizedEmployeeSearch = employeeSearch.trim().toLowerCase();
+  const filteredAdminEmployees = normalizedEmployeeSearch
+    ? adminEmployees.filter((employee) =>
+        [
+          employee.name,
+          employee.nip,
+          formatEmployeeRoles(employee),
+          employee.position,
+          employee.grade,
+          employee.supervisor,
+          employee.approver ?? "",
+          employee.whatsappNumber,
+          employee.bknMode,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedEmployeeSearch),
+      )
+    : adminEmployees;
+  const employeeTotalPages = Math.max(
+    1,
+    Math.ceil(filteredAdminEmployees.length / employeeRowsPerPage),
+  );
+  const safeEmployeePage = Math.min(employeePage, employeeTotalPages);
+  const paginatedAdminEmployees = filteredAdminEmployees.slice(
+    (safeEmployeePage - 1) * employeeRowsPerPage,
+    safeEmployeePage * employeeRowsPerPage,
+  );
+  const employeePageStart =
+    filteredAdminEmployees.length === 0
+      ? 0
+      : (safeEmployeePage - 1) * employeeRowsPerPage + 1;
+  const employeePageEnd = Math.min(
+    safeEmployeePage * employeeRowsPerPage,
+    filteredAdminEmployees.length,
+  );
+
+  useEffect(() => {
+    if (employeePage > employeeTotalPages) {
+      setEmployeePage(employeeTotalPages);
+    }
+  }, [employeePage, employeeTotalPages]);
 
   const newRequestDays = useMemo(
-    () => diffDays(startDate, endDate),
-    [endDate, startDate],
+    () => diffDays(startDate, endDate, holidayDates),
+    [endDate, holidayDates, startDate],
   );
   const requiresSupportingDocument = leaveType !== "Cuti Tahunan";
   const currentDateText = currentTime
@@ -978,56 +1202,95 @@ Tanggal: ${waTemplateRequest.start} s.d. ${waTemplateRequest.end}
 Lama Cuti: ${waTemplateRequest.days} hari kerja
 Alasan: ${waTemplateRequest.reason}
 
-Silakan buka aplikasi SI CUTE untuk memberikan keputusan: Setujui, Tunda, atau Tolak.
+Silakan buka aplikasi SI CUTE untuk memberikan keputusan Setujui, Tunda atau Tolak.
+Link: https://sicute.pa-sampang.go.id/login
 
 Pesan ini dikirim otomatis oleh SI CUTE.`;
 
-  function submitRequest() {
+  async function submitRequest() {
     if (requiresSupportingDocument && !supportingDocument) {
       showToast(`Dokumen pendukung wajib untuk ${leaveType}.`);
       return;
     }
+    if (supportingDocument && supportingDocument.size > maxSupportingDocumentSize) {
+      showToast("Ukuran dokumen pendukung maksimal 3 MB.");
+      return;
+    }
 
-    const applicantName = accountEmployee?.name ?? accountName;
     const applicantNip = accountEmployee?.nip ?? accountNip;
-    const applicantEmployee = adminEmployees.find(
-      (employee) => employee.nip === applicantNip,
-    );
-    const applicantSupervisor =
-      applicantEmployee?.supervisor && applicantEmployee.supervisor !== "-"
-        ? applicantEmployee.supervisor
-        : currentSupervisorName;
-    const id = `CUTI-${activeFiscalYear}-${String(requests.length + 19).padStart(3, "0")}`;
-    const nextRequest: LeaveRequest = {
-      id,
-      employee: applicantName,
-      nip: applicantNip,
-      type: leaveType,
-      start: fmtDate(startDate),
-      end: fmtDate(endDate),
-      submittedAt: fmtDate(new Date().toISOString()),
-      serviceYearsAtSubmission: applicantEmployee?.serviceYears ?? 0,
-      serviceMonthsAtSubmission: applicantEmployee?.serviceMonths ?? 0,
-      days: newRequestDays,
-      reason,
-      address,
-      status: "Pending Atasan",
-      reviewer: applicantSupervisor,
-      approver:
-        applicantSupervisor === currentPybName
-          ? "Sekretaris Daerah"
-          : currentPybName,
-      note: "Notifikasi WA terkirim ke atasan langsung",
-    };
-    setRequests((current) => [nextRequest, ...current]);
-    setSelectedId(id);
-    setActiveTab("approval");
-    showToast(`${id} berhasil dikirim ke atasan langsung.`);
+    if (!manualSignatures[applicantNip]) {
+      showToast("Tanda tangan pemohon wajib diisi sebelum pengajuan dikirim.");
+      return;
+    }
+    try {
+      const attachment = supportingDocument
+        ? await readSupportingAttachment(supportingDocument)
+        : null;
+      const response = await fetch("/api/leave-requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nip: applicantNip,
+          type: leaveType,
+          startDate,
+          endDate,
+          days: newRequestDays,
+          reason,
+          address,
+          attachment,
+        }),
+      });
+      const result = (await response.json()) as {
+        requests?: LeaveRequest[];
+        error?: string;
+      };
+
+      if (!response.ok || !result.requests) {
+        throw new Error(result.error ?? "Pengajuan belum bisa dikirim.");
+      }
+
+      setRequests(result.requests);
+      setSelectedId(result.requests[0]?.id ?? "");
+      setSupportingDocument(null);
+      setActiveTab("approval");
+      setSuccessPopup({
+        title: "Pengajuan Terkirim",
+        description: `${result.requests[0]?.id ?? "Pengajuan"} sudah masuk ke antrean Verifikasi Admin.`,
+      });
+      showToast(`${result.requests[0]?.id ?? "Pengajuan"} berhasil disimpan ke database.`);
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Pengajuan belum bisa dikirim.",
+      );
+    }
   }
 
-  function moveRequest(id: string, status: RequestStatus, note: string) {
+  async function moveRequest(id: string, status: RequestStatus, note: string) {
     const targetRequest = requests.find((request) => request.id === id);
     let finalNote = note;
+
+    const isApprovalDecision =
+      status === "Pending Atasan" ||
+      status === "Pending Pejabat" ||
+      status === "Disetujui";
+    const noSurat = targetRequest
+      ? `${approvalNoSurat.trim()}/${getLeaveDocumentSuffix(targetRequest)}`
+      : "";
+
+    if (isApprovalDecision && !noSurat) {
+      showToast("Nomor surat wajib diisi sebelum menyetujui pengajuan.");
+      return;
+    }
+    if (
+      isApprovalDecision &&
+      (viewRole === "atasan" || viewRole === "pyb") &&
+      !manualSignatures[accountNip]
+    ) {
+      showToast(
+        `Tanda tangan ${viewRole === "atasan" ? "atasan langsung" : "Pejabat Berwenang"} wajib diisi sebelum menyetujui.`,
+      );
+      return;
+    }
 
     if (
       targetRequest &&
@@ -1054,31 +1317,172 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
         return;
       }
 
-      setAdminEmployees((current) =>
-        current.map((employee) =>
-          employee.nip === targetEmployee.nip
-            ? deductionResult.employee
-            : employee,
-        ),
-      );
-
       const deductionText = deductionResult.deductions
         .map((deduction) => `${deduction.year}: ${deduction.days} hari`)
         .join(", ");
       finalNote = `${note}. Kuota dipotong dari saldo terlama (${deductionText})`;
     }
 
-    setRequests((current) =>
-      current.map((request) =>
-        request.id === id ? { ...request, status, note: finalNote } : request,
-      ),
+    try {
+      const response = await fetch("/api/leave-requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id,
+          dbId: targetRequest?.dbId,
+          status,
+          note: finalNote,
+          approverNip: accountNip,
+          noSurat: isApprovalDecision ? noSurat : undefined,
+        }),
+      });
+      const result = (await response.json()) as {
+        requests?: LeaveRequest[];
+        error?: string;
+      };
+
+      if (!response.ok || !result.requests) {
+        throw new Error(result.error ?? "Keputusan belum bisa disimpan.");
+      }
+
+      setRequests(result.requests);
+      const nextVisible = result.requests.filter((request) => {
+        const belongsToRole =
+          viewRole === "atasan"
+            ? request.reviewer === accountName
+            : viewRole === "pyb"
+              ? request.approver === accountName
+              : true;
+        const waitingForRole =
+          viewRole === "admin"
+            ? request.status === "Pending Admin"
+            : viewRole === "atasan"
+            ? request.status === "Pending Atasan"
+            : viewRole === "pyb"
+              ? request.status === "Pending Pejabat"
+            : request.status === "Pending Admin" ||
+              request.status === "Pending Atasan" ||
+              request.status === "Pending Pejabat";
+
+        return belongsToRole && waitingForRole;
+      });
+      setSelectedId(nextVisible[0]?.id ?? "");
+      await loadAdminEmployees();
+      setSuccessPopup({
+        title: "Persetujuan Berhasil",
+        description: `${targetRequest?.id ?? "Pengajuan"} ${finalNote.toLowerCase()}.`,
+      });
+      showToast(`${finalNote} Keputusan tersimpan di database.`);
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Keputusan belum bisa disimpan.",
+      );
+    }
+  }
+
+  async function handleAdminReview(
+    request: LeaveRequest,
+    action: "setuju" | "tolak" | "tunda",
+    noSurat?: string,
+  ) {
+    try {
+      const response = await fetch("/api/admin/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: request.dbId,
+          action,
+          noSurat: noSurat || undefined,
+          catatan: "",
+          adminNip: accountNip,
+        }),
+      });
+      const result = (await response.json()) as {
+        ok?: boolean;
+        newStatus?: string;
+        error?: string;
+      };
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error ?? "Keputusan gagal diproses.");
+      }
+      const refreshed = await fetch("/api/leave-requests");
+      const data = (await refreshed.json()) as {
+        requests?: LeaveRequest[];
+      };
+      if (data.requests) {
+        setRequests(data.requests);
+        setSelectedId(
+          (current) => data.requests?.[0]?.id ?? current,
+        );
+      }
+      const label =
+        action === "setuju"
+          ? "Disetujui & diteruskan ke atasan"
+          : action === "tolak"
+            ? "Ditolak"
+            : "Ditunda";
+      showToast(`${request.id} ${label}.`);
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? error.message
+          : "Keputusan gagal diproses.",
+      );
+    }
+  }
+
+  async function deleteLeaveRequest(request: LeaveRequest) {
+    const confirmed = window.confirm(
+      `Hapus riwayat ${request.id} milik ${request.employee}? Data pengajuan akan dihapus dari database.`,
     );
-    showToast(finalNote);
+
+    if (!confirmed) return;
+
+    try {
+      const response = await fetch(
+        `/api/leave-requests?id=${encodeURIComponent(
+          String(request.dbId ?? request.id),
+        )}`,
+        { method: "DELETE" },
+      );
+      const result = (await response.json()) as {
+        requests?: LeaveRequest[];
+        error?: string;
+      };
+
+      if (!response.ok || !result.requests) {
+        throw new Error(result.error ?? "Riwayat cuti belum bisa dihapus.");
+      }
+
+      setRequests(result.requests);
+      setSelectedId((current) =>
+        current === request.id ? result.requests?.[0]?.id ?? "" : current,
+      );
+      showToast(`${request.id} berhasil dihapus dari database.`);
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Riwayat cuti belum bisa dihapus.",
+      );
+    }
   }
 
   function showToast(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 3000);
+  }
+
+  function saveManualSignature(nip: string, dataUrl: string) {
+    setManualSignatures((current) => {
+      const next = { ...current };
+      if (dataUrl) next[nip] = dataUrl;
+      else delete next[nip];
+      window.localStorage.setItem(
+        "cutipns:manual-signatures",
+        JSON.stringify(next),
+      );
+      return next;
+    });
+    showToast(dataUrl ? "Tanda tangan disimpan." : "Tanda tangan dihapus.");
   }
 
   function openAction(
@@ -1118,9 +1522,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
 
       window.localStorage.setItem("cutipns:fonnte-token", fonnteToken);
       setFonnteTokenStatus(
-        `Token dashboard aktif${result.maskedToken ? ` (${result.maskedToken})` : ""}`,
+        `Token database aktif${result.maskedToken ? ` (${result.maskedToken})` : ""}`,
       );
-      showToast("Token API Fonnte berhasil disimpan.");
+      showToast("Token API Fonnte berhasil disimpan ke database.");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "Token gagal disimpan.");
     } finally {
@@ -1194,6 +1598,53 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     }
   }
 
+  async function saveHolidayDates(nextHolidays: HolidayDate[]) {
+    setIsSavingHoliday(true);
+    try {
+      const response = await fetch("/api/admin/holidays", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ holidays: nextHolidays }),
+      });
+      const result = (await response.json()) as {
+        holidays?: HolidayDate[];
+        error?: string;
+      };
+
+      if (!response.ok || !result.holidays) {
+        throw new Error(result.error ?? "Tanggal libur belum bisa disimpan.");
+      }
+
+      setHolidayDates(result.holidays);
+      showToast("Tanggal libur berhasil disimpan.");
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Tanggal libur belum bisa disimpan.",
+      );
+    } finally {
+      setIsSavingHoliday(false);
+    }
+  }
+
+  async function addHolidayDate() {
+    if (!holidayDate) {
+      showToast("Tanggal libur wajib diisi.");
+      return;
+    }
+
+    await saveHolidayDates([
+      ...holidayDates.filter((holiday) => holiday.date !== holidayDate),
+      {
+        date: holidayDate,
+        label: holidayLabel.trim() || "Libur",
+      },
+    ]);
+  }
+
+  async function removeHolidayDate(date: string) {
+    await saveHolidayDates(holidayDates.filter((holiday) => holiday.date !== date));
+  }
+
   async function copyWaTemplate() {
     try {
       await navigator.clipboard.writeText(waLeaveRequestTemplate);
@@ -1203,43 +1654,86 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     }
   }
 
-  function confirmAction(updatedEmployee?: AdminEmployee) {
+  async function confirmAction(updatedEmployee?: AdminEmployee) {
     if (!dialog) return;
 
-    if (dialog.mode === "delete" && dialog.employee) {
-      setAdminEmployees((current) =>
-        current.filter((employee) => employee.nip !== dialog.employee?.nip),
+    try {
+      if (dialog.mode === "delete" && dialog.employee) {
+        const response = await fetch(
+          `/api/admin/employees?nip=${encodeURIComponent(dialog.employee.nip)}`,
+          { method: "DELETE" },
+        );
+        const result = (await response.json()) as {
+          employees?: AdminEmployee[];
+          error?: string;
+        };
+
+        if (!response.ok || !result.employees) {
+          throw new Error(result.error ?? "Pegawai belum bisa dihapus.");
+        }
+
+        setAdminEmployees(result.employees);
+      }
+
+      if ((dialog.mode === "edit" || dialog.mode === "add") && updatedEmployee) {
+        const response = await fetch("/api/admin/employees", {
+          method: dialog.mode === "edit" ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(updatedEmployee),
+        });
+        const result = (await response.json()) as {
+          employees?: AdminEmployee[];
+          error?: string;
+        };
+
+        if (!response.ok || !result.employees) {
+          throw new Error(result.error ?? "Data pegawai belum bisa disimpan.");
+        }
+
+        setAdminEmployees(result.employees);
+      }
+
+      if (dialog.title.startsWith("Reset")) {
+        const response = await fetch("/api/admin/employees", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "reset-current-year-quota",
+            year: activeFiscalYear,
+          }),
+        });
+        const result = (await response.json()) as {
+          employees?: AdminEmployee[];
+          error?: string;
+        };
+
+        if (!response.ok || !result.employees) {
+          throw new Error(result.error ?? "Kuota tahunan belum bisa direset.");
+        }
+
+        setAdminEmployees(result.employees);
+      }
+
+      showToast(`${dialog.title} berhasil diproses.`);
+      setDialog(null);
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : "Aksi belum bisa diproses.",
       );
     }
-
-    if (dialog.mode === "edit" && updatedEmployee) {
-      setAdminEmployees((current) =>
-        current.map((employee) =>
-          employee.nip === dialog.employee?.nip ? updatedEmployee : employee,
-        ),
-      );
-    }
-
-    if (dialog.mode === "add" && updatedEmployee) {
-      setAdminEmployees((current) => [updatedEmployee, ...current]);
-    }
-
-    if (dialog.title.startsWith("Reset")) {
-      setAdminEmployees((current) =>
-        ensureAnnualQuotaYear(current, activeFiscalYear),
-      );
-    }
-
-    showToast(`${dialog.title} berhasil diproses.`);
-    setDialog(null);
   }
 
   async function downloadPdf(request: LeaveRequest) {
     const { jsPDF } = await import("jspdf");
-    const QRCode = await import("qrcode");
     const pdf = new jsPDF();
     const requestEmployee = adminEmployees.find(
       (employee) => employee.nip === request.nip,
+    );
+    const reviewerEmployee = adminEmployees.find(
+      (employee) => employee.name === request.reviewer,
+    );
+    const approverEmployee = adminEmployees.find(
+      (employee) => employee.name === request.approver,
     );
     const annualStatementRows = getAnnualQuotaStatementRows(
       requestEmployee,
@@ -1248,30 +1742,10 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     const hasReviewerSignature = request.status !== "Pending Atasan";
     const hasApproverSignature =
       request.status === "Disetujui" || request.status === "Ditolak";
-    const employeeQr = await QRCode.toDataURL(
-      buildVerificationPayload(request, request.employee.toUpperCase(), request.nip),
-      { errorCorrectionLevel: "M", margin: 1, width: 160 },
-    );
-    const reviewerQr = hasReviewerSignature
-      ? await QRCode.toDataURL(
-          buildVerificationPayload(
-            request,
-            request.reviewer.toUpperCase(),
-            "198503172008011002",
-          ),
-          { errorCorrectionLevel: "M", margin: 1, width: 160 },
-        )
-      : "";
-    const approverQr = hasApproverSignature
-      ? await QRCode.toDataURL(
-          buildVerificationPayload(
-            request,
-            request.approver.toUpperCase(),
-            request.approver === currentPybName ? currentPybNip : "-",
-          ),
-          { errorCorrectionLevel: "M", margin: 1, width: 160 },
-        )
-      : "";
+    const employeeMark = manualSignatures[request.nip] ?? "";
+    const reviewerMark = manualSignatures[reviewerEmployee?.nip ?? ""] ?? "";
+    const approverMark =
+      manualSignatures[approverEmployee?.nip ?? currentPybNip] ?? "";
     const selectedLeaveType = request.type.replace("Cuti ", "");
     const leaveRows = [
       ["1. Cuti Tahunan", "2. Cuti Besar"],
@@ -1359,7 +1833,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       drawCell("NIP", 95, 73, 25, 6, { bold: true });
       drawCell(request.nip, 120, 73, 75, 6);
       drawCell("JABATAN", 15, 79, 25, 6, { bold: true });
-      drawCell("OPERATOR LAYANAN OPERASIONAL", 40, 79, 55, 6, { fontSize: 5.8 });
+      drawCell(requestEmployee?.position ?? "OPERATOR LAYANAN OPERASIONAL", 40, 79, 55, 6, { fontSize: 5.8 });
       drawCell("MASA KERJA", 95, 79, 25, 6, { bold: true });
       drawCell(formatRequestServicePeriod(request).toUpperCase(), 120, 79, 75, 6);
       drawCell("UNIT KERJA", 15, 85, 25, 6, { bold: true });
@@ -1404,7 +1878,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       drawCell("", 110, 202, 85, 31);
       pdf.setFontSize(5.6);
       pdf.text("Hormat saya,", 152.5, 207, { align: "center" });
-      pdf.addImage(employeeQr, "PNG", 147.5, 209, 10, 10);
+      if (employeeMark) {
+        pdf.addImage(employeeMark, "PNG", 139.5, 208, 26, 12);
+      }
       pdf.text("Telah ditandatangani oleh", 152.5, 221, { align: "center" });
       pdf.setFont("helvetica", "bold");
       pdf.text(request.employee.toUpperCase(), 152.5, 224, { align: "center" });
@@ -1423,7 +1899,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       pdf.setFontSize(5.4);
       pdf.text("Pejabat yang memberi pertimbangan,", 145, 259, { align: "center" });
       if (hasReviewerSignature) {
-        pdf.addImage(reviewerQr, "PNG", 140, 260, 10, 10);
+        if (reviewerMark) {
+          pdf.addImage(reviewerMark, "PNG", 132, 260, 26, 12);
+        }
         pdf.text("Telah ditandatangani oleh", 145, 272, { align: "center" });
         pdf.setFont("helvetica", "bold");
         pdf.text(request.reviewer.toUpperCase(), 145, 274, { align: "center" });
@@ -1479,7 +1957,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     drawCell("NIP", 95, 56, 25, 6, { bold: true });
     drawCell(request.nip, 120, 56, 75, 6);
     drawCell("Jabatan", 15, 62, 25, 6, { bold: true });
-    drawCell("Pelaksana", 40, 62, 55, 6);
+    drawCell(requestEmployee?.position ?? "Pelaksana", 40, 62, 55, 6);
     drawCell("GOL. RUANG", 95, 62, 25, 6, { bold: true });
     drawCell(requestEmployee?.grade ?? employeeGrade, 120, 62, 75, 6);
     drawCell("Unit Kerja", 15, 68, 25, 6, { bold: true });
@@ -1537,7 +2015,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(6.2);
     pdf.text("Hormat saya,", 152.5, 187, { align: "center" });
-    pdf.addImage(employeeQr, "PNG", 145.5, 189, 14, 14);
+    if (employeeMark) {
+      pdf.addImage(employeeMark, "PNG", 139.5, 188, 26, 13);
+    }
     pdf.text(
       [
         "Telah ditandatangani oleh",
@@ -1574,12 +2054,16 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     pdf.setFontSize(5.6);
     pdf.text("Pejabat yang memberi pertimbangan,", 152.5, 239, { align: "center" });
     if (hasReviewerSignature) {
-      pdf.addImage(reviewerQr, "PNG", 147, 241, 11, 11);
+      if (reviewerMark) {
+        pdf.addImage(reviewerMark, "PNG", 139.5, 240, 26, 13);
+      }
       pdf.text("Telah ditandatangani oleh", 152.5, 254, { align: "center" });
       pdf.setFont("helvetica", "bold");
       pdf.text(request.reviewer.toUpperCase(), 152.5, 256.5, { align: "center" });
       pdf.setFont("helvetica", "normal");
-      pdf.text("NIP. 198503172008011002", 152.5, 258.5, { align: "center" });
+      pdf.text(`NIP. ${reviewerEmployee?.nip ?? "-"}`, 152.5, 258.5, {
+        align: "center",
+      });
     } else {
       pdf.setFont("helvetica", "bold");
       pdf.text("DRAFT", 152.5, 247, { align: "center" });
@@ -1609,7 +2093,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       align: "center",
     });
     if (hasApproverSignature) {
-      pdf.addImage(approverQr, "PNG", 147.5, 280.5, 10, 10);
+      if (approverMark) {
+        pdf.addImage(approverMark, "PNG", 139.5, 279.5, 26, 12);
+      }
       pdf.text("Telah ditandatangani oleh", 152.5, 291, { align: "center" });
       pdf.setFont("helvetica", "bold");
       pdf.text(request.approver.toUpperCase(), 152.5, 293, { align: "center" });
@@ -1763,7 +2249,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     const nextAccountNip = accountEmployee?.nip ?? activeAccountNip;
     setViewRole(nextRole);
     setActiveAccountNip(nextAccountNip);
-    setActiveTab(nextRole === "admin" ? "admin" : "approval");
+    setActiveTab("dashboard");
     setHeaderPanel(null);
     setProfileOpen(false);
     router.push(`/?role=${viewRoleToQuery[nextRole]}&nip=${nextAccountNip}`, {
@@ -1771,16 +2257,69 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     });
   }
 
+  const shellTitle =
+    activeTab === "pengajuan"
+      ? "Pengajuan Cuti"
+      : activeTab === "approval"
+        ? "Persetujuan"
+    : activeTab === "admin"
+      ? "Pegawai & Kuota"
+      : activeTab === "notifications"
+        ? "Notifikasi WhatsApp"
+      : activeTab === "settings"
+        ? "Pengaturan"
+      : activeTab === "holidays"
+        ? "Set Tanggal Libur"
+      : activeTab === "history"
+        ? "Riwayat Cuti"
+        : activeTab === "document"
+          ? "Laporan PDF"
+          : "Dashboard";
+
+  if (!authChecked) {
+    return (
+      <main className="sofia-theme flex min-h-screen items-center justify-center bg-background text-foreground">
+        <div className="flex items-center gap-3 rounded-lg border bg-card px-5 py-4 shadow-sm">
+          <PaSampangLogo className="h-10 w-10 rounded-md" />
+          <div>
+            <p className="font-semibold">SI CUTE</p>
+            <p className="text-sm text-muted-foreground">Memeriksa sesi masuk...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="sofia-theme min-h-screen text-foreground">
-      <header className="sticky top-0 z-40 border-b bg-white/92 shadow-[0_1px_18px_rgba(15,23,42,0.06)] backdrop-blur">
-        <div className="mx-auto flex w-full max-w-[1440px] items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <PaSampangLogo className="h-10 w-10 rounded-md shadow-sm ring-1 ring-border" />
+    <main className="sofia-theme admin-shell min-h-screen text-foreground">
+      <div className="flex min-h-screen">
+        <DashboardSidebar
+          activeTab={activeTab}
+          accountRole={roleLabel}
+          viewRole={viewRole}
+          onSelect={setActiveTab}
+          onLogout={logout}
+        />
+        <div className="flex min-w-0 flex-1 flex-col">
+      <header className="sticky top-0 z-40 border-b bg-white/95 shadow-[0_1px_18px_rgba(15,23,42,0.06)] backdrop-blur">
+        <div className="flex w-full items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-7">
+          <div className="flex min-w-0 items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              aria-label="Menu"
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              <Menu />
+            </Button>
+            <div className="hidden h-8 w-px bg-border lg:block" />
             <div className="min-w-0">
-              <h1 className="text-lg font-semibold tracking-normal">SI CUTE</h1>
+              <h1 className="truncate text-xl font-bold uppercase tracking-normal text-[#14285a]">
+                {shellTitle}
+              </h1>
               <p className="hidden text-xs text-muted-foreground sm:block">
-                Sistem Cuti Elektronik Pengadilan Agama Sampang
+                SI CUTE - Sistem Cuti Elektronik Pengadilan Agama Sampang
               </p>
             </div>
           </div>
@@ -1863,7 +2402,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
         ) : null}
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-5 px-4 py-5 sm:px-6 lg:px-8">
+      <div className="flex w-full flex-col gap-5 px-4 pb-24 pt-5 sm:px-6 lg:px-7 lg:pb-5">
+        {activeTab === "dashboard" ? (
+          <>
         <section className="app-surface overflow-hidden rounded-lg border shadow-sm">
           <div className="grid items-center gap-5 p-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:p-6">
             <div className="relative z-10">
@@ -1904,7 +2445,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
         </section>
 
         {viewRole === "atasan" ? (
-          <section className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5 xl:gap-4">
+          <section className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 xl:gap-4">
             <MetricCard
               icon={<Clock3 />}
               label="Perlu Keputusan"
@@ -1939,7 +2480,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
         ) : null}
 
         {viewRole === "pyb" ? (
-          <section className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5 xl:gap-4">
+          <section className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 xl:gap-4">
             <MetricCard
               icon={<ShieldCheck />}
               label="Menunggu Keputusan Final"
@@ -1973,10 +2514,64 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
           </section>
         ) : null}
 
+        {viewRole === "admin" ? (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Dashboard Admin Pembuat Daftar Cuti</CardTitle>
+                  <CardDescription>
+                    Kelola pegawai, kuota tahunan, routing atasan, dan status dokumen.
+                  </CardDescription>
+                </div>
+                <Badge variant="secondary" className="gap-2">
+                  <Building2 className="h-3.5 w-3.5" />
+                  Pengelola
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <AdminStat
+                  label="Total Pegawai"
+                  value={`${adminEmployees.length}`}
+                  detail={`${adminRoleTotal} peran aktif`}
+                />
+                <AdminStat
+                  label={`Kuota Tahun ${activeFiscalYear}`}
+                  value={`${adminCurrentQuotaTotal} hari`}
+                  detail={`${adminEmployees.length} akun terdaftar`}
+                />
+                <AdminStat
+                  label="Sisa Efektif BKN"
+                  value={`${adminCarryOverTotal} hari`}
+                  detail="Sisa lama setelah batas BKN"
+                />
+                <AdminStat
+                  label="Total Bisa Dipakai"
+                  value={`${adminAvailableTotal} hari`}
+                  detail={`Maks. 18/24 termasuk ${activeFiscalYear}`}
+                />
+                <AdminStat
+                  label="Butuh Review"
+                  value={`${pendingAdmin + pendingLeader + pendingPyb}`}
+                    detail="Menunggu review admin + atasan + pejabat"
+                />
+                <AdminStat
+                  label="PDF Final"
+                  value={`${adminFinalPdfTotal}`}
+                  detail="Siap diunduh"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+
         <section
           className={cn(
-            "grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5 xl:gap-4",
-            (viewRole === "atasan" || viewRole === "pyb") && "hidden",
+            "grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 xl:gap-4",
+            (viewRole === "atasan" || viewRole === "pyb" || viewRole === "admin") &&
+              "hidden",
           )}
         >
           <MetricCard
@@ -2029,7 +2624,10 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
             detail={`${sickDaysUsed} hari digunakan • wajib dokumen medis`}
           />
         </section>
+          </>
+        ) : null}
 
+        {activeTab === "pengajuan" ? (
         <section
           className={cn(
             "grid items-start gap-5 xl:grid-cols-[1.15fr_0.85fr]",
@@ -2085,30 +2683,42 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                   <Input
                     id="supporting-document"
                     type="file"
-                    disabled={!requiresSupportingDocument}
-                    accept=".pdf,.jpg,.jpeg,.png"
+                    accept="image/*,.pdf"
+                    capture="environment"
                     onChange={(event) =>
                       setSupportingDocument(event.target.files?.[0] ?? null)
                     }
                   />
                   <p className="text-xs leading-5 text-muted-foreground">
                     {requiresSupportingDocument
-                      ? "Unggah PDF atau gambar dokumen yang mendukung jenis cuti ini."
-                      : "Cuti Tahunan dapat diajukan tanpa dokumen pendukung."}
+                      ? "Ambil foto lewat kamera HP atau unggah PDF/gambar dokumen pendukung."
+                      : "Opsional. Anda dapat mengambil foto dengan kamera HP atau memilih PDF/gambar."}
                   </p>
+                  {supportingDocument ? (
+                    <p className="text-xs font-medium text-foreground">
+                      Lampiran dipilih: {supportingDocument.name}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label>Tanggal mulai</Label>
                   <Input
                     type="date"
                     value={startDate}
-                    onChange={(event) => setStartDate(event.target.value)}
+                    onChange={(event) => {
+                      const nextStart = event.target.value;
+                      setStartDate(nextStart);
+                      setEndDate((current) =>
+                        current < nextStart ? nextStart : current,
+                      );
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Tanggal selesai</Label>
                   <Input
                     type="date"
+                    min={startDate}
                     value={endDate}
                     onChange={(event) => setEndDate(event.target.value)}
                   />
@@ -2127,14 +2737,30 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                     onChange={(event) => setAddress(event.target.value)}
                   />
                 </div>
+                <div className="space-y-3 md:col-span-2">
+                  <div>
+                    <Label>Tanda tangan pemohon</Label>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      Gambar menggunakan mouse, stylus, atau jari. Tanda tangan
+                      wajib diisi sebelum pengajuan dikirim dan akan digunakan
+                      pada dokumen cuti.
+                    </p>
+                  </div>
+                  <SignaturePad
+                    value={manualSignatures[accountNip] ?? ""}
+                    onChange={(dataUrl) =>
+                      saveManualSignature(accountNip, dataUrl)
+                    }
+                  />
+                </div>
               </div>
               <div className="mt-5 flex flex-col gap-3 rounded-md border bg-slate-50 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-medium">
-                    Estimasi durasi: {newRequestDays} hari kerja kalender
+                    Estimasi durasi: {newRequestDays} hari kerja
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Rute persetujuan: Atasan Langsung lalu Pejabat Berwenang.
+                    Sabtu, Minggu, dan tanggal libur dari admin tidak dihitung.
                   </p>
                 </div>
                 <Button className="w-full shadow-sm shadow-primary/20 sm:w-auto" onClick={submitRequest}>
@@ -2153,15 +2779,47 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="rounded-md border bg-sky-50 p-4">
+              {!latestDashboardRequest ? (
+                <div className="rounded-md border border-dashed bg-muted/35 p-4">
+                  <p className="text-sm font-semibold">Belum ada pengajuan</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Data akan muncul setelah pengajuan cuti dibuat.
+                  </p>
+                </div>
+              ) : null}
+              <div
+                className={cn(
+                  "rounded-md border bg-sky-50 p-4",
+                  !latestDashboardRequest && "hidden",
+                )}
+              >
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold">Pengajuan terbaru</p>
+                    <p className="text-sm font-semibold">
+                      {latestDashboardRequest ? "Pengajuan terbaru" : "Belum ada pengajuan"}
+                    </p>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      CUTI-2026-018 • Cuti Tahunan
+                      {latestDashboardRequest
+                        ? `${latestDashboardRequest.id} - ${latestDashboardRequest.type}`
+                        : "Data pengajuan belum tersedia"}
                     </p>
                   </div>
-                  <Badge variant="info">Pending Atasan</Badge>
+                  <Badge
+                    variant={
+                      (latestDashboardRequest
+                        ? statusStyles[latestDashboardRequest.status]
+                        : "info") as
+                        | "default"
+                        | "secondary"
+                        | "destructive"
+                        | "outline"
+                        | "success"
+                        | "warning"
+                        | "info"
+                    }
+                  >
+                    {latestDashboardRequest?.status ?? "Belum ada"}
+                  </Badge>
                 </div>
               </div>
               <Separator />
@@ -2185,22 +2843,10 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
             </CardContent>
           </Card>
         </section>
+        ) : null}
 
+        {activeTab !== "dashboard" ? (
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="sticky top-[65px] z-30 -mx-4 flex flex-col gap-3 border-y bg-white/95 px-4 py-3 shadow-sm backdrop-blur sm:mx-0 sm:flex-row sm:items-center sm:justify-between sm:rounded-lg sm:border">
-            <TabsList className="scrollbar-soft h-auto w-full justify-start overflow-x-auto bg-muted/70 p-1 sm:w-auto">
-              <TabsTrigger value="approval">Persetujuan</TabsTrigger>
-              {viewRole === "admin" ? (
-                <TabsTrigger value="admin">Admin Pembuat Daftar Cuti</TabsTrigger>
-              ) : null}
-              <TabsTrigger value="history">Riwayat</TabsTrigger>
-              <TabsTrigger value="document">Formulir PDF</TabsTrigger>
-            </TabsList>
-            <p className="hidden text-xs text-muted-foreground lg:block">
-              Sesuai Peraturan BKN No. 24 Tahun 2017
-            </p>
-          </div>
-
           <TabsContent value="approval">
             <section className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
               <Card className="overflow-hidden">
@@ -2208,7 +2854,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                   <CardTitle>
                     {viewRole === "pegawai" || viewRole === "pppk"
                       ? "Pengajuan Saya"
-                      : viewRole === "atasan"
+                      : viewRole === "admin"
+                        ? "Antrean Verifikasi Admin"
+                        : viewRole === "atasan"
                         ? "Antrean Telaah Atasan"
                         : viewRole === "pyb"
                           ? "Antrean Persetujuan Final"
@@ -2221,7 +2869,12 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {visibleApprovals.map((request) => (
+                  {visibleApprovals.length === 0 ? (
+                    <div className="rounded-md border border-dashed bg-muted/35 p-5 text-sm text-muted-foreground">
+                      Belum ada pengajuan cuti yang perlu diproses.
+                    </div>
+                  ) : (
+                    visibleApprovals.map((request) => (
                     <button
                       key={request.id}
                       onClick={() => setSelectedId(request.id)}
@@ -2253,7 +2906,8 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                         </Badge>
                       </div>
                     </button>
-                  ))}
+                    ))
+                  )}
                 </CardContent>
               </Card>
 
@@ -2291,13 +2945,57 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                     <Detail label="Alasan" value={selected.reason} wide />
                   </div>
 
+                  {selected.attachmentUrl ? (
+                    <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-foreground">
+                          Dokumen pendukung
+                        </p>
+                        <p className="truncate text-sm text-muted-foreground">
+                          {selected.attachmentName ?? "Lampiran pengajuan cuti"}
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => previewAttachment(selected)}
+                        >
+                          <Eye className="mr-2 h-4 w-4" />
+                          Preview
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => downloadAttachment(selected)}
+                        >
+                          <Download className="mr-2 h-4 w-4" />
+                          Download
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+
                   <div className="rounded-md border">
+                    <ApprovalStep
+                      title="Tingkat 0"
+                      person="Admin Pembuat Daftar Cuti"
+                      role="Verifikasi Administrasi"
+                      status={
+                        selected.status === "Pending Admin"
+                          ? "Menunggu"
+                          : selected.status === "Ditolak" || selected.status === "Perbaikan"
+                            ? selected.status
+                            : "Disetujui"
+                      }
+                    />
+                    <Separator />
                     <ApprovalStep
                       title="Tingkat 1"
                       person={selected.reviewer}
                       role="Atasan Langsung"
                       status={
-                        selected.status === "Pending Atasan"
+                        selected.status === "Pending Admin" || selected.status === "Pending Atasan"
                           ? "Menunggu"
                           : selected.status === "Ditolak" || selected.status === "Perbaikan"
                             ? selected.status
@@ -2319,10 +3017,47 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                     />
                   </div>
 
-                  {selected.status !== "Pending Atasan" ||
+                  {viewRole === "admin" || viewRole === "atasan" || viewRole === "pyb" ? (
+                    <div className="space-y-3 rounded-md border bg-blue-50/45 p-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="approval-no-surat">Nomor surat</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            id="approval-no-surat"
+                            value={approvalNoSurat}
+                            onChange={(event) => setApprovalNoSurat(event.target.value)}
+                            placeholder="Nomor urut"
+                            className="max-w-36"
+                          />
+                          <span className="text-sm text-muted-foreground">
+                            /{getLeaveDocumentSuffix(selected)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Nomor ini akan tampil pada formulir cuti/PDF yang dicetak.
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold">
+                          Tanda tangan {viewRole === "admin" ? "Admin" : viewRole === "atasan" ? "Atasan Langsung" : "Pejabat Berwenang"}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {viewRole === "admin"
+                            ? "Nomor surat menjadi syarat wajib sebelum keputusan Setuju dapat diproses."
+                            : "Tanda tangan dan nomor surat wajib diisi sebelum tombol Setuju dapat memproses keputusan."}
+                        </p>
+                      </div>
+                      {viewRole !== "admin" ? <SignaturePad
+                        value={manualSignatures[accountNip] ?? ""}
+                        onChange={(dataUrl) => saveManualSignature(accountNip, dataUrl)}
+                      /> : null}
+                    </div>
+                  ) : null}
+
+                  {hasSelectedRequest && (selected.status !== "Pending Admin" ||
                   viewRole === "admin" ||
                   viewRole === "atasan" ||
-                  viewRole === "pyb" ? (
+                  viewRole === "pyb") ? (
                     <div
                       className={cn(
                         "flex flex-col gap-3 rounded-md bg-muted/55 p-4 sm:flex-row sm:items-center",
@@ -2332,7 +3067,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                           "sm:justify-end",
                       )}
                     >
-                    {selected.status !== "Pending Atasan" ? (
+                    {selected.status !== "Pending Admin" ? (
                       <div className="sm:mr-auto">
                         <p className="text-sm font-medium">{selected.note}</p>
                         <p className="text-sm text-muted-foreground">
@@ -2374,14 +3109,16 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                           onClick={() =>
                             moveRequest(
                               selected.id,
-                              viewRole === "atasan" ||
-                              selected.status === "Pending Atasan"
-                                ? "Pending Pejabat"
-                                : "Disetujui",
-                              viewRole === "atasan" ||
-                              selected.status === "Pending Atasan"
-                                ? "Disetujui atasan, WA terkirim ke PyB"
-                                : "Disetujui final, kuota dipotong dan PDF tersedia",
+                              viewRole === "admin"
+                                ? "Pending Atasan"
+                                : viewRole === "atasan"
+                                  ? "Pending Pejabat"
+                                  : "Disetujui",
+                              viewRole === "admin"
+                                ? "Diverifikasi admin dan diteruskan ke atasan langsung"
+                                : viewRole === "atasan"
+                                  ? "Disetujui atasan, WA terkirim ke PyB"
+                                  : "Disetujui final, kuota dipotong dan PDF tersedia",
                             )
                           }
                         >
@@ -2398,36 +3135,15 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
           </TabsContent>
 
           <TabsContent value="admin">
-            <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+            <section className="grid gap-5">
               <Card>
-                <CardHeader>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <CardTitle>Dashboard Admin Pembuat Daftar Cuti</CardTitle>
-                      <CardDescription>
-                        Kelola pegawai, kuota tahunan, routing atasan, dan status dokumen.
-                      </CardDescription>
-                    </div>
-                    <Badge variant="secondary" className="gap-2">
-                      <Building2 className="h-3.5 w-3.5" />
-                      Pengelola
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <AdminStat label="Total PNS" value="48" detail="4 peran aktif" />
-                    <AdminStat label={`Kuota Tahun ${activeFiscalYear}`} value="576 hari" detail="48 x 12 hari" />
-                    <AdminStat label="Sisa Efektif BKN" value={`${adminCarryOverTotal} hari`} detail="Sisa lama setelah batas BKN" />
-                    <AdminStat label="Total Bisa Dipakai" value={`${adminAvailableTotal} hari`} detail={`Maks. 18/24 termasuk ${activeFiscalYear}`} />
-                    <AdminStat label="Butuh Review" value={`${pendingLeader + pendingPyb}`} detail="Lintas unit kerja" />
-                    <AdminStat label="PDF Final" value="12" detail="Siap diunduh" />
-                  </div>
+                <CardContent className="space-y-4 p-5">
                   <div className="rounded-md border bg-muted/45 p-4">
                     <p className="text-sm font-semibold">Aksi cepat pengelola</p>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <Button
                         variant="outline"
+                        className="h-auto min-h-12 justify-start whitespace-normal px-3 py-3 text-left leading-snug [&_svg]:mr-1 [&_svg]:size-4"
                         onClick={() =>
                           openAction(
                             "Tambah Pegawai",
@@ -2438,10 +3154,11 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                         }
                       >
                         <UsersRound />
-                        Tambah Pegawai
+                        <span>Tambah Pegawai</span>
                       </Button>
                       <Button
                         variant="outline"
+                        className="h-auto min-h-12 justify-start whitespace-normal px-3 py-3 text-left leading-snug [&_svg]:mr-1 [&_svg]:size-4"
                         onClick={() =>
                           openAction(
                             "Reset Kuota Tahunan",
@@ -2451,10 +3168,11 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                         }
                       >
                         <CalendarDays />
-                        Reset Kuota Tahunan
+                        <span>Reset Kuota Tahunan</span>
                       </Button>
                       <Button
                         variant="outline"
+                        className="h-auto min-h-12 justify-start whitespace-normal px-3 py-3 text-left leading-snug [&_svg]:mr-1 [&_svg]:size-4"
                         onClick={() =>
                           openAction(
                             "Validasi Nomor WhatsApp",
@@ -2464,11 +3182,15 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                         }
                       >
                         <MessageCircle />
-                        Cek Nomor WA
+                        <span>Cek Nomor WA</span>
                       </Button>
-                      <Button variant="outline" onClick={downloadRecap}>
+                      <Button
+                        variant="outline"
+                        className="h-auto min-h-12 justify-start whitespace-normal px-3 py-3 text-left leading-snug [&_svg]:mr-1 [&_svg]:size-4"
+                        onClick={downloadRecap}
+                      >
                         <FileText />
-                        Rekap Dokumen
+                        <span>Rekap Dokumen</span>
                       </Button>
                     </div>
                   </div>
@@ -2477,20 +3199,45 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
 
               <Card>
                 <CardHeader>
-                  <CardTitle>Manajemen Pegawai & Kuota</CardTitle>
-                  <CardDescription>
-                    Data ringkas untuk validasi hak cuti dan jalur persetujuan.
-                  </CardDescription>
+                  <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                      <CardTitle>Manajemen Pegawai & Kuota</CardTitle>
+                      <CardDescription>
+                        Data ringkas untuk validasi hak cuti dan jalur persetujuan.
+                      </CardDescription>
+                    </div>
+                    <div className="w-full space-y-2 lg:max-w-xs">
+                      <Label htmlFor="employee-search">Cari pegawai</Label>
+                      <Input
+                        id="employee-search"
+                        placeholder="Nama, NIP, peran, atasan, pejabat, WA"
+                        value={employeeSearch}
+                        onChange={(event) => {
+                          setEmployeeSearch(event.target.value);
+                          setEmployeePage(1);
+                        }}
+                      />
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
+                  <p className="mb-3 text-xs text-muted-foreground">
+                    Menampilkan {employeePageStart}-{employeePageEnd} dari{" "}
+                    {filteredAdminEmployees.length} data
+                    {filteredAdminEmployees.length !== adminEmployees.length
+                      ? `, total ${adminEmployees.length} pegawai.`
+                      : "."}
+                  </p>
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[760px] text-sm">
                       <thead>
                         <tr className="border-b text-left text-muted-foreground">
                           <th className="py-3 font-medium">Pegawai</th>
+                          <th className="py-3 font-medium">Jabatan</th>
                           <th className="py-3 font-medium">Peran</th>
                           <th className="py-3 font-medium">Gol/Ruang</th>
                           <th className="py-3 font-medium">Atasan</th>
+                          <th className="py-3 font-medium">Pejabat</th>
                           <th className="py-3 font-medium">Sisa {activeFiscalYear}</th>
                           <th className="py-3 font-medium">
                             Sisa {activeFiscalYear - 1}/{activeFiscalYear - 2}
@@ -2502,102 +3249,164 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                         </tr>
                       </thead>
                       <tbody>
-                        {adminEmployees.map((employee) => (
-                          <tr key={employee.nip} className="border-b last:border-0">
-                            <td className="py-3">
-                              <p className="font-medium">{employee.name}</p>
-                              <p className="text-xs text-muted-foreground">{employee.nip}</p>
-                            </td>
-                            <td className="py-3">{formatEmployeeRoles(employee)}</td>
-                            <td className="py-3">
-                              {hasEmployeeRole(employee, "PPPK") ? "-" : employee.grade}
-                            </td>
-                            <td className="py-3">{employee.supervisor}</td>
-                            <td className="py-3">
-                              <QuotaMeter quota={employee.quotas[0]} />
-                            </td>
-                            <td className="py-3">
-                              <div className="space-y-2">
-                                {employee.quotas.slice(1).map((quota) => (
-                                  <div
-                                    className="flex items-center justify-between gap-3 rounded-md bg-muted/55 px-2 py-1 text-xs"
-                                    key={quota.year}
-                                  >
-                                    <span>{quota.year}</span>
-                                    <span className="font-semibold">{quota.remaining} hari</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </td>
-                            <td className="py-3 font-semibold">
-                              {getBknEffectiveQuota(employee)}{" "}
-                              hari
-                            </td>
-                            <td className="py-3">
-                              <Badge
-                                variant={
-                                  employee.bknMode === "Tidak digunakan 2 tahun"
-                                    ? "info"
-                                    : employee.bknMode === "Batas 18 hari"
-                                      ? "warning"
-                                      : "secondary"
-                                }
-                              >
-                                {employee.bknMode}
-                              </Badge>
-                            </td>
-                            <td className="py-3">
-                              <div className="space-y-1">
-                                <Badge variant={employee.whatsapp === "Aktif" ? "success" : "warning"}>
-                                  {employee.whatsapp}
-                                </Badge>
-                                <p className="text-xs text-muted-foreground">
-                                  {employee.whatsappNumber || "Belum diisi"}
-                                </p>
-                              </div>
-                            </td>
-                            <td className="py-3">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  openAction(
-                            `Ubah ${employee.name}`,
-                            `Data ${formatEmployeeRoles(employee)}, atasan ${employee.supervisor}, kuota, dan nomor WhatsApp siap diperbarui.`,
-                            "Simpan Perubahan",
-                            { mode: "edit", employee },
-                          )
-                        }
-                      >
-                        Ubah
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() =>
-                          openAction(
-                            `Hapus ${employee.name}`,
-                            `Pegawai ${employee.name} dengan NIP ${employee.nip} akan dihapus dari daftar simulasi.`,
-                            "Hapus Pegawai",
-                            { mode: "delete", employee },
-                          )
-                        }
-                      >
-                        <Trash2 />
-                        Delete
-                      </Button>
+                        {isLoadingEmployees ? (
+                          <tr>
+                            <td
+                              className="py-6 text-center text-muted-foreground"
+                              colSpan={12}
+                            >
+                              Memuat data pegawai dari database...
                             </td>
                           </tr>
-                        ))}
+                        ) : adminEmployees.length === 0 ? (
+                          <tr>
+                            <td
+                              className="py-6 text-center text-muted-foreground"
+                              colSpan={12}
+                            >
+                              Belum ada pegawai. Gunakan tombol Tambah Pegawai.
+                            </td>
+                          </tr>
+                        ) : filteredAdminEmployees.length === 0 ? (
+                          <tr>
+                            <td
+                              className="py-6 text-center text-muted-foreground"
+                              colSpan={12}
+                            >
+                              Tidak ada pegawai yang cocok dengan pencarian.
+                            </td>
+                          </tr>
+                        ) : (
+                          paginatedAdminEmployees.map((employee) => (
+                            <tr key={employee.nip} className="border-b last:border-0">
+                              <td className="py-3">
+                                <p className="font-medium">{employee.name}</p>
+                                <p className="text-xs text-muted-foreground">{employee.nip}</p>
+                              </td>
+                              <td className="py-3">{employee.position}</td>
+                              <td className="py-3">{formatEmployeeRoles(employee)}</td>
+                              <td className="py-3">
+                                {hasEmployeeRole(employee, "PPPK") ? "-" : employee.grade}
+                              </td>
+                              <td className="py-3">{employee.supervisor}</td>
+                              <td className="py-3">{employee.approver ?? "-"}</td>
+                              <td className="py-3">
+                                <QuotaMeter quota={employee.quotas[0]} />
+                              </td>
+                              <td className="py-3">
+                                <div className="space-y-2">
+                                  {employee.quotas.slice(1).map((quota) => (
+                                    <div
+                                      className="flex items-center justify-between gap-3 rounded-md bg-muted/55 px-2 py-1 text-xs"
+                                      key={quota.year}
+                                    >
+                                      <span>{quota.year}</span>
+                                      <span className="font-semibold">{quota.remaining} hari</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                              <td className="py-3 font-semibold">
+                                {getBknEffectiveQuota(employee)} hari
+                              </td>
+                              <td className="py-3">
+                                <Badge
+                                  variant={
+                                    employee.bknMode === "Tidak digunakan 2 tahun"
+                                      ? "info"
+                                      : employee.bknMode === "Batas 18 hari"
+                                        ? "warning"
+                                        : "secondary"
+                                  }
+                                >
+                                  {employee.bknMode}
+                                </Badge>
+                              </td>
+                              <td className="py-3">
+                                <div className="space-y-1">
+                                  <Badge variant={employee.whatsapp === "Aktif" ? "success" : "warning"}>
+                                    {employee.whatsapp}
+                                  </Badge>
+                                  <p className="text-xs text-muted-foreground">
+                                    {employee.whatsappNumber || "Belum diisi"}
+                                  </p>
+                                </div>
+                              </td>
+                              <td className="py-3">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    openAction(
+                                      `Ubah ${employee.name}`,
+                                      `Data ${formatEmployeeRoles(employee)}, atasan ${employee.supervisor}, kuota, dan nomor WhatsApp siap diperbarui.`,
+                                      "Simpan Perubahan",
+                                      { mode: "edit", employee },
+                                    )
+                                  }
+                                >
+                                  Ubah
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() =>
+                                    openAction(
+                                      `Hapus ${employee.name}`,
+                                      `Pegawai ${employee.name} dengan NIP ${employee.nip} akan dihapus dari database.`,
+                                      "Hapus Pegawai",
+                                      { mode: "delete", employee },
+                                    )
+                                  }
+                                >
+                                  <Trash2 />
+                                  Delete
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                     </table>
+                  </div>
+                  <div className="mt-4 flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                      Halaman {safeEmployeePage} dari {employeeTotalPages} • 10 data
+                      per halaman
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={safeEmployeePage <= 1}
+                        onClick={() =>
+                          setEmployeePage((current) => Math.max(1, current - 1))
+                        }
+                      >
+                        Sebelumnya
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={safeEmployeePage >= employeeTotalPages}
+                        onClick={() =>
+                          setEmployeePage((current) =>
+                            Math.min(employeeTotalPages, current + 1),
+                          )
+                        }
+                      >
+                        Berikutnya
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </section>
 
-            <section className="mt-5 grid gap-5 lg:grid-cols-2 xl:grid-cols-4">
+            <section className="hidden">
               <Card>
                 <CardHeader>
                   <CardTitle>Monitoring Approval</CardTitle>
@@ -2707,13 +3516,16 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                         variant="outline"
                         size="sm"
                         onClick={copyWaTemplate}
+                        disabled={!hasSelectedRequest}
                       >
                         <Copy />
                         Salin
                       </Button>
                     </div>
                     <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-md border bg-background p-3 text-xs leading-5 text-foreground">
-                      {waLeaveRequestTemplate}
+                      {hasSelectedRequest
+                        ? waLeaveRequestTemplate
+                        : "Belum ada pengajuan cuti untuk dibuatkan template pesan WhatsApp."}
                     </pre>
                   </div>
                 </CardContent>
@@ -2724,9 +3536,33 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                   <CardDescription>Status pengiriman WhatsApp otomatis.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <AdminLog title="Pengajuan baru" detail="Terkirim ke Arif Hidayat" status="Berhasil" />
-                  <AdminLog title="Eskalasi PyB" detail="Terkirim ke Dewi Lestari" status="Berhasil" />
-                  <AdminLog title="Nomor pegawai" detail="Nadia Putri perlu validasi nomor" status="Perlu cek" />
+                  {requests.length === 0 && adminInvalidWhatsapp.length === 0 ? (
+                    <div className="rounded-md border border-dashed bg-muted/35 p-4 text-sm text-muted-foreground">
+                      Belum ada riwayat notifikasi WhatsApp.
+                    </div>
+                  ) : null}
+                  {requests.length > 0 ? (
+                    <>
+                      <AdminLog
+                        title="Pengajuan baru"
+                        detail={`${requests.length} pengajuan tercatat`}
+                        status="Berhasil"
+                      />
+                      <AdminLog
+                        title="PDF final"
+                        detail={`${adminFinalPdfTotal} dokumen final`}
+                        status={adminFinalPdfTotal > 0 ? "Berhasil" : "Perlu cek"}
+                      />
+                    </>
+                  ) : null}
+                  {adminInvalidWhatsapp.map((employee) => (
+                    <AdminLog
+                      key={employee.nip}
+                      title="Nomor pegawai"
+                      detail={`${employee.name} perlu validasi nomor`}
+                      status="Perlu cek"
+                    />
+                  ))}
                 </CardContent>
               </Card>
               <Card>
@@ -2759,6 +3595,269 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                     <CalendarDays />
                     Reset & Arsipkan Kuota
                   </Button>
+                </CardContent>
+              </Card>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="notifications">
+            <section className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Kirim Notifikasi WhatsApp</CardTitle>
+                  <CardDescription>
+                    Kelola template pesan dan uji pengiriman melalui Fonnte.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-md border bg-muted/45 p-3">
+                    <p className="text-xs text-muted-foreground">Status token</p>
+                    <p className="mt-1 text-sm font-semibold">{fonnteTokenStatus}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="notification-test-number">Nomor WA tes</Label>
+                    <Input
+                      id="notification-test-number"
+                      value={testWaNumber}
+                      onChange={(event) => setTestWaNumber(event.target.value)}
+                      placeholder="6281234567890"
+                    />
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={testFonnteToken}
+                    disabled={isTestingFonnte}
+                  >
+                    <Send />
+                    {isTestingFonnte ? "Mengirim..." : "Uji Kirim WA"}
+                  </Button>
+                  <div className="rounded-lg border bg-muted/30 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div>
+                        <p className="text-sm font-semibold">Template Pesan WA</p>
+                        <p className="text-xs text-muted-foreground">
+                          Pengajuan cuti ke atasan langsung.
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={copyWaTemplate}
+                        disabled={!hasSelectedRequest}
+                      >
+                        <Copy />
+                        Salin
+                      </Button>
+                    </div>
+                    <pre className="mt-3 max-h-72 overflow-auto whitespace-pre-wrap rounded-md border bg-background p-3 text-xs leading-5 text-foreground">
+                      {hasSelectedRequest
+                        ? waLeaveRequestTemplate
+                        : "Belum ada pengajuan cuti untuk dibuatkan template pesan WhatsApp."}
+                    </pre>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Audit Notifikasi</CardTitle>
+                  <CardDescription>Status pengiriman WhatsApp otomatis.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {requests.length === 0 && adminInvalidWhatsapp.length === 0 ? (
+                    <div className="rounded-md border border-dashed bg-muted/35 p-4 text-sm text-muted-foreground">
+                      Belum ada riwayat notifikasi WhatsApp.
+                    </div>
+                  ) : null}
+                  {requests.length > 0 ? (
+                    <>
+                      <AdminLog
+                        title="Pengajuan baru"
+                        detail={`${requests.length} pengajuan tercatat`}
+                        status="Berhasil"
+                      />
+                      <AdminLog
+                        title="PDF final"
+                        detail={`${adminFinalPdfTotal} dokumen final`}
+                        status={adminFinalPdfTotal > 0 ? "Berhasil" : "Perlu cek"}
+                      />
+                    </>
+                  ) : null}
+                  {adminInvalidWhatsapp.map((employee) => (
+                    <AdminLog
+                      key={employee.nip}
+                      title="Nomor pegawai"
+                      detail={`${employee.name} perlu validasi nomor`}
+                      status="Perlu cek"
+                    />
+                  ))}
+                </CardContent>
+              </Card>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <section className="grid gap-5 xl:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Pengaturan WhatsApp Fonnte</CardTitle>
+                  <CardDescription>Ganti token API dan simpan ke database.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-md border bg-muted/45 p-3">
+                    <p className="text-xs text-muted-foreground">Status token</p>
+                    <p className="mt-1 text-sm font-semibold">{fonnteTokenStatus}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="settings-fonnte-token">Token API Fonnte</Label>
+                    <div className="relative">
+                      <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        id="settings-fonnte-token"
+                        type="password"
+                        value={fonnteToken}
+                        onChange={(event) => setFonnteToken(event.target.value)}
+                        placeholder="Masukkan token Fonnte"
+                        className="pl-9"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={saveFonnteToken}
+                    disabled={isSavingFonnte}
+                  >
+                    <ShieldCheck />
+                    {isSavingFonnte ? "Menyimpan..." : "Simpan Token API"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={clearFonnteToken}
+                    disabled={isSavingFonnte}
+                  >
+                    Hapus Token Dashboard
+                  </Button>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Kontrol Tahunan</CardTitle>
+                  <CardDescription>
+                    Perawatan data kuota dan carry-over 2 tahun ke belakang.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <Detail label="Tahun aktif" value={String(activeFiscalYear)} />
+                  <Detail label="Default cuti tahunan" value="12 hari" />
+                  <Detail label="Sisa tahun sebelumnya" value="Maks. 6 hari" />
+                  <Detail label="Maks. normal" value="18 hari termasuk tahun berjalan" />
+                  <Detail label="Tidak dipakai 2 tahun+" value="Maks. 24 hari termasuk tahun berjalan" />
+                  <Detail
+                    label="Reset otomatis berikutnya"
+                    value={`1 Januari ${activeFiscalYear + 1}`}
+                  />
+                  <Button
+                    className="w-full"
+                    onClick={() =>
+                      openAction(
+                        "Reset & Arsipkan Kuota",
+                        "Saldo tahun lama akan diarsipkan, batas 6/18/24 hari diterapkan, lalu kuota tahun baru dibuat.",
+                        "Reset & Arsipkan",
+                      )
+                    }
+                  >
+                    <CalendarDays />
+                    Reset & Arsipkan Kuota
+                  </Button>
+                </CardContent>
+              </Card>
+            </section>
+          </TabsContent>
+
+          <TabsContent value="holidays">
+            <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Set Tanggal Libur</CardTitle>
+                  <CardDescription>
+                    Tambahkan libur nasional, cuti bersama, atau libur lokal kantor.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="holiday-date">Tanggal libur</Label>
+                    <Input
+                      id="holiday-date"
+                      type="date"
+                      value={holidayDate}
+                      onChange={(event) => setHolidayDate(event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="holiday-label">Nama/keterangan</Label>
+                    <Input
+                      id="holiday-label"
+                      value={holidayLabel}
+                      onChange={(event) => setHolidayLabel(event.target.value)}
+                      placeholder="Contoh: Cuti bersama Idulfitri"
+                    />
+                  </div>
+                  <Button
+                    className="w-full"
+                    onClick={addHolidayDate}
+                    disabled={isSavingHoliday}
+                  >
+                    <CalendarDays />
+                    {isSavingHoliday ? "Menyimpan..." : "Tambah Tanggal Libur"}
+                  </Button>
+                  <div className="rounded-lg border bg-muted/35 p-4 text-sm leading-6 text-muted-foreground">
+                    Sabtu dan Minggu otomatis tidak dihitung sebagai hari kerja.
+                    Menu ini dipakai untuk tanggal libur tambahan yang jatuh pada
+                    hari kerja.
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Daftar Tanggal Libur</CardTitle>
+                  <CardDescription>
+                    Tanggal di bawah ini akan dikecualikan dari hitungan durasi cuti.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {holidayDates.length === 0 ? (
+                    <div className="rounded-md border border-dashed bg-muted/35 p-5 text-sm text-muted-foreground">
+                      Belum ada tanggal libur tambahan.
+                    </div>
+                  ) : (
+                    holidayDates.map((holiday) => (
+                      <div
+                        key={holiday.date}
+                        className="flex flex-col gap-3 rounded-lg border bg-background p-4 sm:flex-row sm:items-center sm:justify-between"
+                      >
+                        <div>
+                          <p className="text-sm font-semibold">{holiday.label}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {fmtDate(holiday.date)}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="justify-start text-destructive hover:text-destructive sm:justify-center"
+                          onClick={() => removeHolidayDate(holiday.date)}
+                          disabled={isSavingHoliday}
+                        >
+                          <Trash2 />
+                          Hapus
+                        </Button>
+                      </div>
+                    ))
+                  )}
                 </CardContent>
               </Card>
             </section>
@@ -2950,6 +4049,51 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                                 <Download />
                                 PDF
                               </Button>
+                              {viewRole === "admin" && request.status === "Pending Admin" ? (
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-green-600 hover:text-green-700"
+                                    onClick={() => {
+                                      setSelectedId(request.id);
+                                      setActiveTab("approval");
+                                    }}
+                                  >
+                                    <CheckCircle2 />
+                                    Proses
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-yellow-600 hover:text-yellow-700"
+                                    onClick={() => handleAdminReview(request, "tunda")}
+                                  >
+                                    <Clock3 />
+                                    Tunda
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive"
+                                    onClick={() => handleAdminReview(request, "tolak")}
+                                  >
+                                    <XCircle />
+                                    Tolak
+                                  </Button>
+                                </div>
+                              ) : null}
+                              {viewRole === "admin" ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  onClick={() => deleteLeaveRequest(request)}
+                                >
+                                  <Trash2 />
+                                  Hapus
+                                </Button>
+                              ) : null}
                             </div>
                           </td>
                         </tr>
@@ -2972,23 +4116,61 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                 </div>
                 <Button
                   className="w-full shadow-sm shadow-primary/20 sm:w-auto"
-                  disabled={selected.status !== "Disetujui"}
+                  disabled={!hasSelectedRequest || selected.status !== "Disetujui"}
                   onClick={() => downloadPdf(selected)}
                 >
                   <Download />
                   Unduh PDF Final
                 </Button>
               </div>
-              <DispositionSheet
-                request={selected}
-                employee={adminEmployees.find(
-                  (employee) => employee.nip === selected.nip,
-                )}
-              />
+              {hasSelectedRequest ? (
+                <DispositionSheet
+                  request={selected}
+                  employee={adminEmployees.find(
+                    (employee) => employee.nip === selected.nip,
+                  )}
+                  employees={adminEmployees}
+                />
+              ) : (
+                <Card>
+                  <CardContent className="p-6 text-sm text-muted-foreground">
+                    Belum ada formulir cuti yang dapat dipratinjau. Formulir akan
+                    muncul setelah pegawai membuat pengajuan cuti.
+                  </CardContent>
+                </Card>
+              )}
             </section>
           </TabsContent>
         </Tabs>
+        ) : null}
       </div>
+
+      <footer className="mb-20 border-t bg-white/70 px-4 py-5 text-center text-xs text-muted-foreground sm:px-6 lg:mb-0 lg:px-7">
+        © {activeFiscalYear} SI CUTE - Sistem Cuti Elektronik | Pengadilan Agama Sampang
+      </footer>
+
+      <MobileNavigation
+        activeTab={activeTab}
+        viewRole={viewRole}
+        onSelect={(tab) => {
+          setActiveTab(tab);
+          setMobileMenuOpen(false);
+        }}
+      />
+
+      {mobileMenuOpen ? (
+        <MobileMenuDrawer
+          activeTab={activeTab}
+          accountRole={roleLabel}
+          viewRole={viewRole}
+          onClose={() => setMobileMenuOpen(false)}
+          onLogout={logout}
+          onSelect={(tab) => {
+            setActiveTab(tab);
+            setMobileMenuOpen(false);
+          }}
+        />
+      ) : null}
 
       {dialog ? (
         <ActionDialog
@@ -2997,6 +4179,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
           confirmLabel={dialog.confirmLabel}
           mode={dialog.mode}
           employee={dialog.employee}
+          employees={adminEmployees}
           onCancel={() => setDialog(null)}
           onConfirm={confirmAction}
         />
@@ -3011,79 +4194,6 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
           onSwitchRole={switchDashboardRole}
         />
       ) : null}
-
-      <div className="fixed bottom-4 left-4 z-50 hidden rounded-md border bg-card p-1 shadow-lg lg:flex">
-        <button
-          className={cn(
-            "rounded-sm px-3 py-1.5 text-xs font-medium",
-            viewRole === "pegawai"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-muted",
-          )}
-          onClick={() => {
-            setViewRole("pegawai");
-            setActiveTab("approval");
-          }}
-        >
-          Pegawai
-        </button>
-        <button
-          className={cn(
-            "rounded-sm px-3 py-1.5 text-xs font-medium",
-            viewRole === "pppk"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-muted",
-          )}
-          onClick={() => {
-            setViewRole("pppk");
-            setActiveTab("approval");
-          }}
-        >
-          PPPK
-        </button>
-        <button
-          className={cn(
-            "rounded-sm px-3 py-1.5 text-xs font-medium",
-            viewRole === "atasan"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-muted",
-          )}
-          onClick={() => {
-            setViewRole("atasan");
-            setActiveTab("approval");
-          }}
-        >
-          Atasan
-        </button>
-        <button
-          className={cn(
-            "rounded-sm px-3 py-1.5 text-xs font-medium",
-            viewRole === "pyb"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-muted",
-          )}
-          onClick={() => {
-            setViewRole("pyb");
-            setActiveTab("approval");
-          }}
-        >
-          PyB
-        </button>
-        <button
-          className={cn(
-            "rounded-sm px-3 py-1.5 text-xs font-medium",
-            viewRole === "admin"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-muted",
-          )}
-          onClick={() => {
-            setViewRole("admin");
-            setActiveTab("admin");
-          }}
-        >
-          Admin Pembuat Daftar Cuti
-        </button>
-      </div>
 
       {toast ? (
         <div
@@ -3103,6 +4213,29 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
           </button>
         </div>
       ) : null}
+      {successPopup ? (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/45 p-5">
+          <Card className="w-full max-w-md border-emerald-200 bg-white shadow-2xl">
+            <CardContent className="flex flex-col items-center px-7 py-9 text-center">
+              <div className="mb-5 flex size-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
+                <CheckCircle2 className="size-11" />
+              </div>
+              <h2 className="text-2xl font-bold text-slate-900">{successPopup.title}</h2>
+              <p className="mt-3 text-base leading-7 text-muted-foreground">
+                {successPopup.description}
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Notifikasi proses cuti dapat dipantau pada halaman Persetujuan.
+              </p>
+              <Button className="mt-7 w-full" onClick={() => setSuccessPopup(null)}>
+                Lanjutkan
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+        </div>
+      </div>
     </main>
   );
 }
@@ -3112,6 +4245,262 @@ export default function Home() {
     <Suspense fallback={null}>
       <HomeContent />
     </Suspense>
+  );
+}
+
+function getNavigationItems(viewRole: ViewRole, activeTab: string) {
+  const isAdmin = viewRole === "admin";
+  return [
+    {
+      label: "Dashboard",
+      shortLabel: "Home",
+      icon: LayoutDashboard,
+      tab: "dashboard",
+      active: activeTab === "dashboard",
+    },
+    {
+      label: "Pengajuan Cuti",
+      shortLabel: "Ajukan",
+      icon: ClipboardList,
+      tab: "pengajuan",
+      active: activeTab === "pengajuan",
+    },
+    {
+      label: "Persetujuan",
+      shortLabel: "Setuju",
+      icon: ShieldCheck,
+      tab: "approval",
+      active: activeTab === "approval",
+    },
+    {
+      label: "Pegawai & Kuota",
+      shortLabel: "Pegawai",
+      icon: UsersRound,
+      tab: "admin",
+      active: activeTab === "admin",
+      adminOnly: true,
+    },
+    {
+      label: "Notifikasi WhatsApp",
+      shortLabel: "WA",
+      icon: MessageCircle,
+      tab: "notifications",
+      active: activeTab === "notifications",
+      adminOnly: true,
+    },
+    {
+      label: "Laporan PDF",
+      shortLabel: "PDF",
+      icon: FileBarChart2,
+      tab: "document",
+      active: activeTab === "document",
+    },
+    {
+      label: "Pengaturan",
+      shortLabel: "Setting",
+      icon: Settings,
+      tab: "settings",
+      active: activeTab === "settings",
+      adminOnly: true,
+    },
+    {
+      label: "Set Tanggal Libur",
+      shortLabel: "Libur",
+      icon: CalendarDays,
+      tab: "holidays",
+      active: activeTab === "holidays",
+      adminOnly: true,
+    },
+    {
+      label: "Riwayat Aktivitas",
+      shortLabel: "Riwayat",
+      icon: History,
+      tab: "history",
+      active: activeTab === "history",
+    },
+  ].filter((item) => !item.adminOnly || isAdmin);
+}
+
+function DashboardSidebar({
+  activeTab,
+  accountRole,
+  viewRole,
+  onSelect,
+  onLogout,
+}: {
+  activeTab: string;
+  accountRole: string;
+  viewRole: ViewRole;
+  onSelect: (tab: string) => void;
+  onLogout: () => void;
+}) {
+  const items = getNavigationItems(viewRole, activeTab);
+
+  return (
+    <aside className="admin-sidebar hidden min-h-screen w-[236px] shrink-0 flex-col bg-[#062f5f] text-white lg:flex">
+      <div className="flex items-center gap-3 px-5 py-5">
+        <PaSampangLogo className="h-11 w-11 rounded-md bg-white/10 object-contain p-0.5 ring-1 ring-white/15" />
+        <div className="min-w-0">
+          <p className="text-lg font-bold leading-tight">SI CUTE</p>
+          <p className="text-[11px] leading-4 text-blue-100/85">
+            Sistem Cuti Elektronik
+          </p>
+          <p className="text-[10px] leading-3 text-blue-100/70">
+            Pengadilan Agama Sampang
+          </p>
+        </div>
+      </div>
+
+      <nav className="flex-1 space-y-1 px-3 py-2">
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.label}
+              type="button"
+              className={cn(
+                "flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-sm font-medium text-blue-50/85 transition hover:bg-white/10 hover:text-white",
+                item.active && "bg-[#0b67c2] text-white shadow-[0_10px_24px_rgba(3,24,56,0.28)]",
+              )}
+              onClick={() => onSelect(item.tab)}
+            >
+              <Icon className="h-4 w-4" />
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
+      <div className="px-4 pb-5">
+        <div className="mb-3 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-xs text-blue-50/85">
+          <p className="font-semibold text-white">{accountRole}</p>
+          <p className="mt-0.5">Akun aktif</p>
+        </div>
+        <button
+          type="button"
+          className="flex w-full items-center gap-3 rounded-md border border-white/12 px-3 py-2.5 text-left text-sm font-medium text-blue-50/85 transition hover:bg-white/10 hover:text-white"
+          onClick={onLogout}
+        >
+          <LogOut className="h-4 w-4" />
+          Logout
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+function MobileNavigation({
+  activeTab,
+  viewRole,
+  onSelect,
+}: {
+  activeTab: string;
+  viewRole: ViewRole;
+  onSelect: (tab: string) => void;
+}) {
+  const items = getNavigationItems(viewRole, activeTab);
+
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t bg-white/95 px-2 py-2 shadow-[0_-10px_28px_rgba(15,36,70,0.12)] backdrop-blur lg:hidden">
+      <div className="scrollbar-soft flex gap-1 overflow-x-auto pb-1">
+        {items.map((item) => {
+          const Icon = item.icon;
+          return (
+            <button
+              key={item.label}
+              type="button"
+              className={cn(
+                "flex min-w-[72px] flex-col items-center justify-center gap-1 rounded-md px-2 py-2 text-[11px] font-medium text-muted-foreground",
+                item.active && "bg-primary text-primary-foreground shadow-sm",
+              )}
+              onClick={() => onSelect(item.tab)}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="leading-tight">{item.shortLabel}</span>
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
+function MobileMenuDrawer({
+  activeTab,
+  accountRole,
+  viewRole,
+  onClose,
+  onSelect,
+  onLogout,
+}: {
+  activeTab: string;
+  accountRole: string;
+  viewRole: ViewRole;
+  onClose: () => void;
+  onSelect: (tab: string) => void;
+  onLogout: () => void;
+}) {
+  const items = getNavigationItems(viewRole, activeTab);
+
+  return (
+    <div className="fixed inset-0 z-[80] bg-slate-950/45 lg:hidden">
+      <aside className="admin-sidebar flex h-full w-[86vw] max-w-[340px] flex-col text-white shadow-2xl">
+        <div className="flex items-start justify-between gap-3 px-5 py-5">
+          <div className="flex items-center gap-3">
+            <PaSampangLogo className="h-11 w-11 rounded-md bg-white/10 object-contain p-0.5 ring-1 ring-white/15" />
+            <div>
+              <p className="text-lg font-bold leading-tight">SI CUTE</p>
+              <p className="text-[11px] leading-4 text-blue-100/85">
+                Sistem Cuti Elektronik
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="rounded-md p-2 text-blue-50/85 hover:bg-white/10"
+            onClick={onClose}
+            aria-label="Tutup menu"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <nav className="flex-1 space-y-1 px-3 py-2">
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.label}
+                type="button"
+                className={cn(
+                  "flex w-full items-center gap-3 rounded-md px-3 py-3 text-left text-sm font-medium text-blue-50/85 transition hover:bg-white/10 hover:text-white",
+                  item.active && "bg-[#0b67c2] text-white shadow-[0_10px_24px_rgba(3,24,56,0.28)]",
+                )}
+                onClick={() => onSelect(item.tab)}
+              >
+                <Icon className="h-4 w-4" />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="px-4 pb-5">
+          <div className="mb-3 rounded-md border border-white/10 bg-white/5 px-3 py-2 text-xs text-blue-50/85">
+            <p className="font-semibold text-white">{accountRole}</p>
+            <p className="mt-0.5">Akun aktif</p>
+          </div>
+          <button
+            type="button"
+            className="flex w-full items-center gap-3 rounded-md border border-white/12 px-3 py-2.5 text-left text-sm font-medium text-blue-50/85 transition hover:bg-white/10 hover:text-white"
+            onClick={onLogout}
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </button>
+        </div>
+      </aside>
+    </div>
   );
 }
 
@@ -3368,6 +4757,7 @@ function EmployeeProfileDialog({
         <div className="space-y-5 p-5">
           <div className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
             <Detail label="Peran" value={formatEmployeeRoles(employee)} />
+            <Detail label="Jabatan" value={employee.position} />
             {!hasEmployeeRole(employee, "PPPK") ? (
               <Detail label="Golongan/Ruang" value={employee.grade} />
             ) : null}
@@ -3445,6 +4835,7 @@ function ActionDialog({
   confirmLabel,
   mode,
   employee,
+  employees,
   onCancel,
   onConfirm,
 }: {
@@ -3453,8 +4844,9 @@ function ActionDialog({
   confirmLabel: string;
   mode?: "add" | "edit" | "delete";
   employee?: AdminEmployee;
+  employees: AdminEmployee[];
   onCancel: () => void;
-  onConfirm: (updatedEmployee?: AdminEmployee) => void;
+  onConfirm: (updatedEmployee?: AdminEmployee) => void | Promise<void>;
 }) {
   const isEmployeeForm = mode === "add" || mode === "edit";
   const currentQuota = employee?.quotas.find(
@@ -3475,6 +4867,7 @@ function ActionDialog({
   ];
   const [name, setName] = useState(employee?.name ?? "");
   const [nip, setNip] = useState(employee?.nip ?? "");
+  const [position, setPosition] = useState(employee?.position ?? "Pelaksana");
   const [grade, setGrade] = useState(employee?.grade ?? employeeGrade);
   const [serviceYears, setServiceYears] = useState(
     String(employee?.serviceYears ?? 0),
@@ -3507,7 +4900,10 @@ function ActionDialog({
     });
   };
   const [selectedSupervisor, setSelectedSupervisor] = useState(
-    employee?.supervisor ?? "Arif Hidayat",
+    employee?.supervisor ?? "-",
+  );
+  const [selectedApprover, setSelectedApprover] = useState(
+    employee?.approver ?? "-",
   );
   const [currentRemaining, setCurrentRemaining] = useState(
     String(currentQuota?.remaining ?? 12),
@@ -3519,15 +4915,26 @@ function ActionDialog({
     String(olderQuota?.remaining ?? 0),
   );
   const supervisorOptions = [
-    { name: "Arif Hidayat", nip: "198503172008011002" },
-    { name: "Dewi Lestari", nip: "197705182001122001" },
-    ...initialAdminEmployees
-      .filter(
-        (item) =>
-          hasEmployeeRole(item, "Atasan Langsung") ||
+    { name: "-", nip: "-" },
+    ...employees.filter(
+      (item) =>
+        item.nip !== employee?.nip &&
+        (hasEmployeeRole(item, "Atasan Langsung") ||
           hasEmployeeRole(item, "Pejabat Berwenang") ||
-          hasEmployeeRole(item, "Admin Pembuat Daftar Cuti"),
-      )
+          hasEmployeeRole(item, "Admin Pembuat Daftar Cuti")),
+    ),
+  ].filter(
+    (item, index, items) =>
+      items.findIndex((candidate) => candidate.name === item.name) === index,
+  );
+  const approverOptions = [
+    { name: "-", nip: "-" },
+    ...employees.filter(
+      (item) =>
+        item.nip !== employee?.nip &&
+        (hasEmployeeRole(item, "Pejabat Berwenang") ||
+          hasEmployeeRole(item, "Admin Pembuat Daftar Cuti")),
+    ),
   ].filter(
     (item, index, items) =>
       items.findIndex((candidate) => candidate.name === item.name) === index,
@@ -3552,6 +4959,7 @@ function ActionDialog({
       nip: nip.trim() || employee?.nip || "NIP-BARU",
       role: primarySelectedRole,
       roles: normalizedSelectedRoles,
+      position: position.trim() || "Pelaksana",
       grade: isSelectedPppk ? "" : grade.trim() || employeeGrade,
       serviceYears: nextServiceYears,
       serviceMonths: nextServiceMonths,
@@ -3560,6 +4968,10 @@ function ActionDialog({
         isSelectedPyb && normalizedSelectedRoles.length === 1
           ? "-"
           : selectedSupervisor,
+      approver:
+        isSelectedPyb && normalizedSelectedRoles.length === 1
+          ? "-"
+          : selectedApprover,
       quotas: [
         {
           year: activeFiscalYear,
@@ -3580,6 +4992,7 @@ function ActionDialog({
       bknMode: employee?.bknMode ?? "Normal",
       whatsapp: nextWhatsappNumber ? "Aktif" : "Perlu cek",
       whatsappNumber: nextWhatsappNumber,
+      accountPassword,
     };
   };
 
@@ -3629,6 +5042,18 @@ function ActionDialog({
                 value={nip}
                 onChange={(event) => setNip(event.target.value)}
               />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="employee-position">Jabatan</Label>
+              <Input
+                id="employee-position"
+                placeholder="Contoh: Analis Perkara Peradilan"
+                value={position}
+                onChange={(event) => setPosition(event.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Jabatan ini digunakan otomatis pada formulir PDF cuti.
+              </p>
             </div>
             {!isSelectedPppk ? (
               <div className="space-y-2">
@@ -3775,13 +5200,35 @@ function ActionDialog({
                 <SelectContent>
                   {supervisorOptions.map((option) => (
                     <SelectItem value={option.name} key={option.nip}>
-                      {option.name} - NIP {option.nip}
+                      {option.nip === "-"
+                        ? "Tanpa atasan langsung"
+                        : `${option.name} - NIP ${option.nip}`}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
                 Dipakai untuk routing persetujuan tingkat 1.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Pejabat berwenang</Label>
+              <Select value={selectedApprover} onValueChange={setSelectedApprover}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih pejabat berwenang" />
+                </SelectTrigger>
+                <SelectContent>
+                  {approverOptions.map((option) => (
+                    <SelectItem value={option.name} key={option.nip}>
+                      {option.nip === "-"
+                        ? "Tanpa pejabat berwenang"
+                        : `${option.name} - NIP ${option.nip}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Dipakai untuk routing persetujuan final tingkat 2.
               </p>
             </div>
             <div className="space-y-2">
@@ -4018,9 +5465,11 @@ function ApprovalStep({
 function DispositionSheet({
   request,
   employee,
+  employees,
 }: {
   request: LeaveRequest;
   employee?: AdminEmployee;
+  employees: AdminEmployee[];
 }) {
   const leaveType = request.type.replace("Cuti ", "");
   const hasReviewerSignature = request.status !== "Pending Atasan";
@@ -4029,9 +5478,21 @@ function DispositionSheet({
   const isLeave = (value: string) =>
     value.toLowerCase().includes(leaveType.toLowerCase());
   const annualStatementRows = getAnnualQuotaStatementRows(employee, request);
+  const reviewerEmployee = employees.find(
+    (item) => item.name === request.reviewer,
+  );
+  const approverEmployee = employees.find(
+    (item) => item.name === request.approver,
+  );
 
   if (hasEmployeeRole(employee, "PPPK")) {
-    return <PppkDispositionSheet request={request} employee={employee} />;
+    return (
+      <PppkDispositionSheet
+        request={request}
+        employee={employee}
+        employees={employees}
+      />
+    );
   }
 
   return (
@@ -4070,9 +5531,9 @@ function DispositionSheet({
             </tr>
             <tr>
               <PreviewLabel>Jabatan</PreviewLabel>
-              <PreviewCell>Pelaksana</PreviewCell>
+              <PreviewCell>{employee?.position ?? "Pelaksana"}</PreviewCell>
               <PreviewLabel>GOL. RUANG</PreviewLabel>
-              <PreviewCell>{employeeGrade}</PreviewCell>
+              <PreviewCell>{employee?.grade ?? employeeGrade}</PreviewCell>
             </tr>
             <tr>
               <PreviewLabel>Unit Kerja</PreviewLabel>
@@ -4278,13 +5739,13 @@ function DispositionSheet({
                         code={buildVerificationPayload(
                           request,
                           request.reviewer.toUpperCase(),
-                          "198503172008011002",
+                          reviewerEmployee?.nip ?? "-",
                         )}
                       />
                     </div>
                     <p className="text-[9px]">Telah ditandatangani oleh</p>
                     <p className="font-bold">{request.reviewer.toUpperCase()}</p>
-                    <p>NIP. 198503172008011002</p>
+                    <p>NIP. {reviewerEmployee?.nip ?? "-"}</p>
                   </>
                 ) : (
                   <div className="mt-8">
@@ -4344,19 +5805,13 @@ function DispositionSheet({
                         code={buildVerificationPayload(
                           request,
                           request.approver.toUpperCase(),
-                          request.approver === "Dewi Lestari"
-                            ? "197705182001122001"
-                            : "-",
+                          approverEmployee?.nip ?? "-",
                         )}
                       />
                     </div>
                     <p className="text-[9px]">Telah ditandatangani oleh</p>
                     <p className="font-bold">{request.approver.toUpperCase()}</p>
-                    <p>
-                      NIP. {request.approver === "Dewi Lestari"
-                        ? "197705182001122001"
-                        : "-"}
-                    </p>
+                    <p>NIP. {approverEmployee?.nip ?? "-"}</p>
                   </>
                 ) : (
                   <div className="mt-8">
@@ -4378,9 +5833,11 @@ function DispositionSheet({
 function PppkDispositionSheet({
   request,
   employee,
+  employees,
 }: {
   request: LeaveRequest;
   employee?: AdminEmployee;
+  employees: AdminEmployee[];
 }) {
   const leaveType = request.type.replace("Cuti ", "");
   const isLeave = (value: string) =>
@@ -4389,6 +5846,12 @@ function PppkDispositionSheet({
   const hasReviewerSignature = request.status !== "Pending Atasan";
   const hasApproverSignature =
     request.status === "Disetujui" || request.status === "Ditolak";
+  const reviewerEmployee = employees.find(
+    (item) => item.name === request.reviewer,
+  );
+  const approverEmployee = employees.find(
+    (item) => item.name === request.approver,
+  );
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
@@ -4428,7 +5891,7 @@ function PppkDispositionSheet({
             </tr>
             <tr>
               <PreviewLabel>JABATAN</PreviewLabel>
-              <PreviewCell>OPERATOR LAYANAN OPERASIONAL</PreviewCell>
+              <PreviewCell>{employee?.position ?? "OPERATOR LAYANAN OPERASIONAL"}</PreviewCell>
               <PreviewLabel>MASA KERJA</PreviewLabel>
               <PreviewCell>{formatRequestServicePeriod(request).toUpperCase()}</PreviewCell>
             </tr>
@@ -4595,13 +6058,13 @@ function PppkDispositionSheet({
                         code={buildVerificationPayload(
                           request,
                           request.reviewer.toUpperCase(),
-                          "198503172008011002",
+                          reviewerEmployee?.nip ?? "-",
                         )}
                       />
                     </div>
                     <p className="text-[9px]">Telah ditandatangani oleh</p>
                     <p className="font-bold">{request.reviewer.toUpperCase()}</p>
-                    <p>NIP. 198503172008011002</p>
+                    <p>NIP. {reviewerEmployee?.nip ?? "-"}</p>
                   </>
                 ) : (
                   <div className="mt-6">
@@ -4643,19 +6106,13 @@ function PppkDispositionSheet({
                         code={buildVerificationPayload(
                           request,
                           request.approver.toUpperCase(),
-                          request.approver === "Dewi Lestari"
-                            ? "197705182001122001"
-                            : "-",
+                          approverEmployee?.nip ?? "-",
                         )}
                       />
                     </div>
                     <p className="text-[9px]">Telah ditandatangani oleh</p>
                     <p className="font-bold">{request.approver.toUpperCase()}</p>
-                    <p>
-                      NIP. {request.approver === "Dewi Lestari"
-                        ? "197705182001122001"
-                        : "-"}
-                    </p>
+                    <p>NIP. {approverEmployee?.nip ?? "-"}</p>
                   </>
                 ) : (
                   <div className="mt-6">
@@ -4750,43 +6207,144 @@ function PreviewSpacer() {
   return <div className="h-3" />;
 }
 
-function QrVerificationMark({ code }: { code: string }) {
-  const [src, setSrc] = useState("");
+function SignaturePad({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (dataUrl: string) => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingRef = useRef(false);
 
   useEffect(() => {
-    let mounted = true;
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (!canvas || !context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "white";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    if (!value) return;
+    const image = new Image();
+    image.onload = () => context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    image.src = value;
+  }, [value]);
 
-    import("qrcode")
-      .then((QRCode) =>
-        QRCode.toDataURL(code, {
-          errorCorrectionLevel: "M",
-          margin: 1,
-          width: 96,
-        }),
-      )
-      .then((dataUrl) => {
-        if (mounted) {
-          setSrc(dataUrl);
-        }
-      });
-
-    return () => {
-      mounted = false;
+  function point(event: React.PointerEvent<HTMLCanvasElement>) {
+    const canvas = event.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((event.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((event.clientY - rect.top) / rect.height) * canvas.height,
     };
+  }
+
+  function startDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
+    const context = event.currentTarget.getContext("2d");
+    if (!context) return;
+    drawingRef.current = true;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    const current = point(event);
+    context.beginPath();
+    context.moveTo(current.x, current.y);
+  }
+
+  function draw(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current) return;
+    const context = event.currentTarget.getContext("2d");
+    if (!context) return;
+    const current = point(event);
+    context.strokeStyle = "#111827";
+    context.lineWidth = 3;
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.lineTo(current.x, current.y);
+    context.stroke();
+  }
+
+  function finishDrawing(event: React.PointerEvent<HTMLCanvasElement>) {
+    if (!drawingRef.current) return;
+    drawingRef.current = false;
+    onChange(event.currentTarget.toDataURL("image/png"));
+  }
+
+  function clearSignature() {
+    const canvas = canvasRef.current;
+    const context = canvas?.getContext("2d");
+    if (canvas && context) {
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      context.fillStyle = "white";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    onChange("");
+  }
+
+  return (
+    <div className="space-y-3">
+      <canvas
+        ref={canvasRef}
+        width={720}
+        height={220}
+        aria-label="Area menggambar tanda tangan"
+        className="h-44 w-full touch-none rounded-md border-2 border-dashed border-primary/30 bg-white shadow-inner"
+        onPointerDown={startDrawing}
+        onPointerMove={draw}
+        onPointerUp={finishDrawing}
+        onPointerCancel={finishDrawing}
+      />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Gunakan mouse, stylus, atau jari.
+        </p>
+        <Button type="button" variant="outline" size="sm" onClick={clearSignature}>
+          <Trash2 />
+          Hapus Tanda Tangan
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function QrVerificationMark({ code }: { code: string }) {
+  const [imageSrc, setImageSrc] = useState("");
+
+  useEffect(() => {
+    const nipLine = code.split("\n").find((line) => line.startsWith("NIP "));
+    const nip = nipLine?.slice(4).trim() ?? "";
+    try {
+      const saved = JSON.parse(
+        window.localStorage.getItem("cutipns:manual-signatures") ?? "{}",
+      ) as Record<string, string>;
+      setImageSrc(saved[nip] ?? "");
+    } catch {
+      setImageSrc("");
+    }
   }, [code]);
 
   return (
-    <div className="flex h-16 w-16 items-center justify-center border border-black bg-white p-1">
-      {src ? (
+    <div className="flex h-16 w-28 items-center justify-center bg-white p-1">
+      {imageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          alt="QR verifikasi dokumen"
-          className="h-full w-full"
-          src={src}
+          alt="Tanda tangan manual"
+          className="max-h-full max-w-full object-contain"
+          src={imageSrc}
         />
       ) : (
-        <span className="text-[8px]">QR</span>
+        <span className="px-2 text-center text-[8px] text-gray-500">
+          Tanda tangan belum tersedia
+        </span>
       )}
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+

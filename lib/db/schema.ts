@@ -101,17 +101,17 @@ export const leaveRequests = sqliteTable("leave_requests", {
   alasan: text("alasan").notNull(),
   alamatCuti: text("alamat_cuti").notNull(),
   lampiranUrl: text("lampiran_url"),
+  noSurat: text("no_surat"),
   status: text("status", {
     enum: [
-      "pending_atasan",
-      "pending_pejabat",
+      "pending_admin", "pending_atasan", "pending_pejabat",
       "disetujui",
       "ditolak",
       "perbaikan",
     ],
   })
     .notNull()
-    .default("pending_atasan"),
+    .default("pending_admin"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
@@ -125,7 +125,7 @@ export const approvals = sqliteTable("approvals", {
     .notNull()
     .references(() => users.nip),
   tahapan: text("tahapan", {
-    enum: ["tingkat_1_atasan", "tingkat_2_pejabat"],
+    enum: ["tingkat_0_admin", "tingkat_1_atasan", "tingkat_2_pejabat"],
   }).notNull(),
   keputusan: text("keputusan", {
     enum: ["disetujui", "ditolak", "perbaikan"],
@@ -179,3 +179,5 @@ export const leaveRequestsRelations = relations(leaveRequests, ({ one, many }) =
   approvals: many(approvals),
   whatsappLogs: many(whatsappLogs),
 }));
+
+

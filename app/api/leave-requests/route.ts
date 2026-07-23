@@ -279,6 +279,55 @@ export async function PATCH(request: Request) {
         }
       }
     }
+
+    if (currentStatus === "pending_atasan" && status === "pending_pejabat") {
+      const recipients = await db.all<{
+        namaPegawai: string;
+        nipPegawai: string;
+        jenisCuti: string;
+        tglMulai: string;
+        tglSelesai: string;
+        jumlahHari: number;
+        pybNip: string | null;
+        noWhatsappPyb: string | null;
+      }>(sql`
+        SELECT u.nama AS namaPegawai, r.nip AS nipPegawai,
+               r.jenis_cuti AS jenisCuti, r.tgl_mulai AS tglMulai,
+               r.tgl_selesai AS tglSelesai, r.jumlah_hari AS jumlahHari,
+               p.nip AS pybNip, p.no_whatsapp AS noWhatsappPyb
+        FROM leave_requests r
+        JOIN users u ON u.nip = r.nip
+        LEFT JOIN users p ON p.nip = u.pejabat_nip
+        WHERE r.id = ${numericId}
+      `);
+      const recipient = recipients[0];
+      if (recipient?.noWhatsappPyb && recipient.pybNip) {
+        const message = `📋 *Pengajuan Cuti Menunggu Keputusan PYB*\n\nPegawai: ${recipient.namaPegawai}\nNIP: ${recipient.nipPegawai}\nJenis cuti: ${recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari\nNo. Surat: ${currentNoSurat ?? "-"}\n\nAtasan langsung telah menyetujui pengajuan. Silakan buka SI CUTE untuk memberikan keputusan final.`;
+        try {
+          const result = await sendWhatsApp({
+            to: recipient.noWhatsappPyb,
+            message,
+          });
+          await db.run(sql`
+            INSERT INTO whatsapp_logs
+              (request_id, target_nip, no_whatsapp, provider, message, status, provider_message_id, created_at)
+            VALUES
+              (${numericId}, ${recipient.pybNip}, ${recipient.noWhatsappPyb},
+               ${result.provider}, ${message}, ${result.ok ? "sent" : "failed"},
+               ${result.providerMessageId ?? null}, CURRENT_TIMESTAMP)
+          `);
+        } catch (whatsappError) {
+          await db.run(sql`
+            INSERT INTO whatsapp_logs
+              (request_id, target_nip, no_whatsapp, provider, message, status, error, created_at)
+            VALUES
+              (${numericId}, ${recipient.pybNip}, ${recipient.noWhatsappPyb},
+               'fonnte', ${message}, 'failed',
+               ${whatsappError instanceof Error ? whatsappError.message : "WhatsApp gagal dikirim"}, CURRENT_TIMESTAMP)
+          `);
+        }
+      }
+    }
     return GET();
   } catch (error) {
     return NextResponse.json(

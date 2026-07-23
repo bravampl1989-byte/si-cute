@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "path": "/api/cron/annual-rollover",
+      "schedule": "5 17 31 12 *"
+    }
+  ]
+}

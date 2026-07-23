@@ -206,20 +206,6 @@ function downloadAttachment(request: LeaveRequest) {
   anchor.remove();
 }
 
-function previewAttachment(request: LeaveRequest) {
-  if (!request.attachmentUrl) return;
-
-  // Navigating straight to the data URL is more reliable than injecting it
-  // into an about:blank iframe, especially for PDF files in mobile browsers.
-  const anchor = document.createElement("a");
-  anchor.href = request.attachmentUrl;
-  anchor.target = "_blank";
-  anchor.rel = "noopener noreferrer";
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-}
-
 const activeFiscalYear = getJakartaFiscalYear();
 const employeeGrade = "PENATA MUDA (III/a)";
 const gradeOptions = [
@@ -611,6 +597,7 @@ function HomeContent() {
     title: string;
     description: string;
   } | null>(null);
+  const [attachmentPreview, setAttachmentPreview] = useState<LeaveRequest | null>(null);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [fonnteToken, setFonnteToken] = useState("");
   const [fonnteTokenStatus, setFonnteTokenStatus] = useState(
@@ -2953,7 +2940,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={() => previewAttachment(selected)}
+                          onClick={() => setAttachmentPreview(selected)}
                         >
                           <Eye className="mr-2 h-4 w-4" />
                           Preview
@@ -4204,6 +4191,51 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
           onClose={() => setProfileOpen(false)}
           onSwitchRole={switchDashboardRole}
         />
+      ) : null}
+
+      {attachmentPreview?.attachmentUrl ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/65 p-3 sm:p-6">
+          <section
+            className="flex h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Preview dokumen pendukung"
+          >
+            <header className="flex items-center justify-between gap-3 border-b px-4 py-3">
+              <div className="min-w-0">
+                <p className="font-semibold">Preview dokumen pendukung</p>
+                <p className="truncate text-sm text-muted-foreground">
+                  {attachmentPreview.attachmentName ?? "Lampiran pengajuan cuti"}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Button variant="outline" size="sm" onClick={() => downloadAttachment(attachmentPreview)}>
+                  <Download className="h-4 w-4" />
+                  Download
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setAttachmentPreview(null)} aria-label="Tutup preview">
+                  <X className="h-5 w-5" />
+                </Button>
+              </div>
+            </header>
+            <div className="min-h-0 flex-1 bg-slate-100 p-2 sm:p-4">
+              {(attachmentPreview.attachmentType === "application/pdf" ||
+                attachmentPreview.attachmentUrl.startsWith("data:application/pdf")) ? (
+                <iframe
+                  title="Dokumen pendukung"
+                  src={attachmentPreview.attachmentUrl}
+                  className="h-full w-full rounded border bg-white"
+                />
+              ) : (
+                <img
+                  src={attachmentPreview.attachmentUrl}
+                  alt="Dokumen pendukung"
+                  className="h-full w-full object-contain"
+                />
+              )}
+            </div>
+          </section>
+        </div>
       ) : null}
 
       {toast ? (

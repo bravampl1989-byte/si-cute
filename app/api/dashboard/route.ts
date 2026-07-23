@@ -126,7 +126,7 @@ export async function GET(request: Request) {
       {
         sql: `
           SELECT r.id, r.nip, r.jenis_cuti, r.tgl_mulai, r.tgl_selesai,
-                 r.jumlah_hari, r.alasan, r.alamat_cuti, r.no_surat, r.status,
+                 r.jumlah_hari, r.alasan, r.alamat_cuti, r.lampiran_url, r.no_surat, r.status,
                  r.created_at, u.nama,
                  COALESCE(a.nama, '-') AS atasan_nama,
                  ap.catatan
@@ -241,6 +241,11 @@ export async function GET(request: Request) {
         reviewer: String(row.atasan_nama ?? "-"),
         approver: pybName,
         note: String(row.catatan ?? "Data langsung dari Turso"),
+        attachmentName: row.lampiran_url ? "Dokumen pendukung pengajuan" : null,
+        attachmentType: row.lampiran_url
+          ? String(row.lampiran_url).match(/^data:([^;,]+)/)?.[1] ?? null
+          : null,
+        attachmentUrl: row.lampiran_url ? String(row.lampiran_url) : null,
         noSurat: row.no_surat ? String(row.no_surat) : null,
       };
     });

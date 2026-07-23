@@ -160,10 +160,11 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const currentRows = await db.all<{ status: string }>(sql`
-      SELECT status FROM leave_requests WHERE id = ${numericId}
+    const currentRows = await db.all<{ status: string; noSurat: string | null }>(sql`
+      SELECT status, no_surat AS noSurat FROM leave_requests WHERE id = ${numericId}
     `);
     const currentStatus = currentRows[0]?.status;
+    const currentNoSurat = currentRows[0]?.noSurat;
     const nextApprovalStatus: Record<string, string> = {
       pending_admin: "pending_atasan",
       pending_atasan: "pending_pejabat",
@@ -179,15 +180,24 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const approvalStatus = ["pending_atasan", "pending_pejabat", "disetujui"];
-    if (approvalStatus.includes(status) && !body.noSurat?.trim()) {
+    const adminApproval = currentStatus === "pending_admin" && status === "pending_atasan";
+    const continuedApproval =
+      (currentStatus === "pending_atasan" && status === "pending_pejabat") ||
+      (currentStatus === "pending_pejabat" && status === "disetujui");
+    if (adminApproval && !body.noSurat?.trim()) {
       return NextResponse.json(
-        { error: "Nomor surat wajib diisi untuk keputusan setuju." },
+        { error: "Nomor surat wajib diisi oleh Admin sebelum diteruskan." },
+        { status: 400 },
+      );
+    }
+    if (continuedApproval && !currentNoSurat) {
+      return NextResponse.json(
+        { error: "Nomor surat belum diisi Admin. Pengajuan belum dapat diteruskan." },
         { status: 400 },
       );
     }
 
-    if (body.noSurat?.trim()) {
+    if (adminApproval && body.noSurat?.trim()) {
       await db.run(sql`
         UPDATE leave_requests
         SET status = ${status}, no_surat = ${body.noSurat.trim()}, updated_at = CURRENT_TIMESTAMP

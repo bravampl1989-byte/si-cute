@@ -1266,12 +1266,13 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       status === "Pending Atasan" ||
       status === "Pending Pejabat" ||
       status === "Disetujui";
-    const noSurat = targetRequest
+    const adminSetsNoSurat = isApprovalDecision && viewRole === "admin";
+    const noSurat = adminSetsNoSurat && targetRequest
       ? `${approvalNoSurat.trim()}/${getLeaveDocumentSuffix(targetRequest)}`
-      : "";
+      : targetRequest?.noSurat ?? "";
 
-    if (isApprovalDecision && !noSurat) {
-      showToast("Nomor surat wajib diisi sebelum menyetujui pengajuan.");
+    if (adminSetsNoSurat && !noSurat) {
+      showToast("Nomor surat wajib diisi Admin sebelum meneruskan pengajuan.");
       return;
     }
     if (
@@ -1326,7 +1327,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
           status,
           note: finalNote,
           approverNip: accountNip,
-          noSurat: isApprovalDecision ? noSurat : undefined,
+          noSurat: adminSetsNoSurat ? noSurat : undefined,
         }),
       });
       const result = (await response.json()) as {
@@ -2939,11 +2940,11 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                     <Detail label="Alasan" value={selected.reason} wide />
                   </div>
 
-                  {selected.attachmentUrl ? (
+                  {selected.type !== "Cuti Tahunan" && selected.attachmentUrl ? (
                     <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-foreground">
-                          Dokumen pendukung
+                          Dokumen pendukung untuk ditinjau
                         </p>
                         <p className="truncate text-sm text-muted-foreground">
                           {selected.attachmentName ?? "Lampiran pengajuan cuti"}
@@ -2967,6 +2968,11 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                           Download
                         </Button>
                       </div>
+                    </div>
+                  ) : (viewRole === "atasan" || viewRole === "pyb") &&
+                    selected.type !== "Cuti Tahunan" ? (
+                    <div className="rounded-md border border-dashed bg-amber-50/50 p-4 text-sm text-amber-900">
+                      Dokumen pendukung belum tersedia pada pengajuan ini.
                     </div>
                   ) : null}
 
@@ -3013,7 +3019,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
 
                   {viewRole === "admin" || viewRole === "atasan" || viewRole === "pyb" ? (
                     <div className="space-y-3 rounded-md border bg-blue-50/45 p-4">
-                      <div className="space-y-2">
+                      {viewRole === "admin" ? <div className="space-y-2">
                         <Label htmlFor="approval-no-surat">Nomor surat</Label>
                         <div className="flex items-center gap-2">
                           <Input
@@ -3030,7 +3036,17 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                         <p className="text-xs text-muted-foreground">
                           Nomor ini akan tampil pada formulir cuti/PDF yang dicetak.
                         </p>
-                      </div>
+                      </div> : (
+                        <div className="space-y-1">
+                          <p className="text-sm font-semibold">Nomor surat</p>
+                          <p className="text-sm text-muted-foreground">
+                            {selected.noSurat ?? "Belum diisi oleh Admin"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Nomor surat hanya dapat diisi pada tahap Admin dan tidak dapat diubah pada tahap ini.
+                          </p>
+                        </div>
+                      )}
                       <div>
                         <p className="text-sm font-semibold">
                           Tanda tangan {viewRole === "admin" ? "Admin" : viewRole === "atasan" ? "Atasan Langsung" : "Pejabat Berwenang"}
@@ -3038,7 +3054,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                         <p className="mt-1 text-xs text-muted-foreground">
                           {viewRole === "admin"
                             ? "Nomor surat menjadi syarat wajib sebelum keputusan Setuju dapat diproses."
-                            : "Tanda tangan dan nomor surat wajib diisi sebelum tombol Setuju dapat memproses keputusan."}
+                            : "Tanda tangan wajib diisi sebelum tombol Setuju dapat memproses keputusan. Nomor surat dikunci dari tahap Admin."}
                         </p>
                       </div>
                       {viewRole !== "admin" ? <SignaturePad

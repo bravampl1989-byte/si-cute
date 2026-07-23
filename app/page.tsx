@@ -209,16 +209,15 @@ function downloadAttachment(request: LeaveRequest) {
 function previewAttachment(request: LeaveRequest) {
   if (!request.attachmentUrl) return;
 
-  const previewWindow = window.open();
-  if (!previewWindow) {
-    downloadAttachment(request);
-    return;
-  }
-
-  previewWindow.document.write(
-    `<iframe src="${request.attachmentUrl}" style="border:0;width:100vw;height:100vh"></iframe>`,
-  );
-  previewWindow.document.close();
+  // Navigating straight to the data URL is more reliable than injecting it
+  // into an about:blank iframe, especially for PDF files in mobile browsers.
+  const anchor = document.createElement("a");
+  anchor.href = request.attachmentUrl;
+  anchor.target = "_blank";
+  anchor.rel = "noopener noreferrer";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
 }
 
 const activeFiscalYear = getJakartaFiscalYear();

@@ -28,6 +28,12 @@ const statusValues: Record<string, string> = {
   Perbaikan: "perbaikan",
 };
 
+const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://sicute.pa-sampang.go.id").replace(/\/$/, "");
+
+function approvalLink(role: "atasan" | "pyb", nip: string) {
+  return `${appUrl}/?role=${role}&nip=${encodeURIComponent(nip)}`;
+}
+
 export async function GET() {
   const response = await getDashboard(
     new Request("http://localhost/api/dashboard?role=admin"),
@@ -313,7 +319,7 @@ export async function PATCH(request: Request) {
       `);
       const recipient = recipients[0];
       if (recipient?.noWhatsappAtasan && recipient.atasanNip) {
-        const message = `📋 *Pengajuan Cuti Menunggu Persetujuan Atasan*\n\nPegawai: ${recipient.namaPegawai}\nJenis cuti: ${recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari\nNo. Surat: ${body.noSurat}\n\nPengajuan telah diverifikasi Admin. Silakan buka SI CUTE untuk memberikan keputusan.`;
+        const message = `📋 *Pengajuan Cuti Menunggu Persetujuan Atasan*\n\nPegawai: ${recipient.namaPegawai}\nJenis cuti: ${recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari\nNo. Surat: ${body.noSurat}\n\nPengajuan telah diverifikasi Admin. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("atasan", recipient.atasanNip)}`;
         try {
           const result = await sendWhatsApp({
             to: recipient.noWhatsappAtasan,
@@ -363,7 +369,7 @@ export async function PATCH(request: Request) {
       `);
       const recipient = recipients[0];
       if (recipient?.noWhatsappPyb && recipient.pybNip) {
-        const message = `📋 *Pengajuan Cuti Menunggu Keputusan PYB*\n\nPegawai: ${recipient.namaPegawai}\nNIP: ${recipient.nipPegawai}\nJenis cuti: ${recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari\nNo. Surat: ${currentNoSurat ?? "-"}\n\nAtasan langsung telah menyetujui pengajuan. Silakan buka SI CUTE untuk memberikan keputusan final.`;
+        const message = `📋 *Pengajuan Cuti Menunggu Keputusan PYB*\n\nPegawai: ${recipient.namaPegawai}\nNIP: ${recipient.nipPegawai}\nJenis cuti: ${recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari\nNo. Surat: ${currentNoSurat ?? "-"}\n\nAtasan langsung telah menyetujui pengajuan. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("pyb", recipient.pybNip)}`;
         try {
           const result = await sendWhatsApp({
             to: recipient.noWhatsappPyb,

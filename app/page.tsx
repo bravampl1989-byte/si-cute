@@ -701,6 +701,12 @@ function HomeContent() {
   }, []);
 
   useEffect(() => {
+    if (activeTab !== "admin") return;
+    setEmployeeSearch("");
+    setEmployeePage(1);
+  }, [activeTab]);
+
+  useEffect(() => {
     const savedToken = window.localStorage.getItem("cutipns:fonnte-token") ?? "";
     setFonnteToken(savedToken);
 
@@ -1126,17 +1132,7 @@ function HomeContent() {
   const normalizedEmployeeSearch = employeeSearch.trim().toLowerCase();
   const filteredAdminEmployees = normalizedEmployeeSearch
     ? adminEmployees.filter((employee) =>
-        [
-          employee.name,
-          employee.nip,
-          formatEmployeeRoles(employee),
-          employee.position,
-          employee.grade,
-          employee.supervisor,
-          employee.approver ?? "",
-          employee.whatsappNumber,
-          employee.bknMode,
-        ]
+        [employee.name, employee.nip]
           .join(" ")
           .toLowerCase()
           .includes(normalizedEmployeeSearch),
@@ -3207,10 +3203,12 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                       </CardDescription>
                     </div>
                     <div className="w-full space-y-2 lg:max-w-xs">
-                      <Label htmlFor="employee-search">Cari pegawai</Label>
+                      <Label htmlFor="employee-search">Cari nama atau NIP pegawai</Label>
                       <Input
                         id="employee-search"
-                        placeholder="Nama, NIP, peran, atasan, pejabat, WA"
+                        name="employee-search-manual"
+                        autoComplete="off"
+                        placeholder="Ketik nama atau NIP pegawai"
                         value={employeeSearch}
                         onChange={(event) => {
                           setEmployeeSearch(event.target.value);

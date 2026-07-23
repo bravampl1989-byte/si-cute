@@ -86,7 +86,7 @@ export async function GET(request: Request) {
       role === "pegawai" || role === "pppk"
         ? { sql: "AND r.nip = ?", args: [nip] }
         : role === "atasan"
-          ? { sql: "AND u.atasan_nip = ?", args: [nip] }
+          ? { sql: "AND (u.atasan_nip = ? OR r.nip = ?)", args: [nip, nip] }
           : { sql: "", args: [] };
 
     const results = await client.batch([

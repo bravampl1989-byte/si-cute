@@ -967,7 +967,7 @@ function HomeContent() {
   const selectedRequest =
     selectedPool.find((request) => request.id === selectedId) ??
     selectedPool[0] ??
-    (activeTab === "approval" ? undefined : dashboardRequests[0]);
+    (activeTab === "approval" || activeTab === "document" ? undefined : dashboardRequests[0]);
   const hasSelectedRequest = Boolean(selectedRequest);
   const selected: LeaveRequest =
     selectedRequest ?? {

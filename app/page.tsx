@@ -2548,7 +2548,25 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
         </section>
 
         {viewRole === "atasan" ? (
-          <section className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 xl:gap-4">
+          <section className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 xl:gap-4">
+            <MetricCard
+              icon={<CalendarDays />}
+              label="Sisa Cuti Pribadi"
+              value={`${annualEffectiveLeft} hari`}
+              detail={`Berjalan ${annualCurrentLeft} hari, saldo lama ${annualCarryOverLeft} hari`}
+            >
+              <div className="space-y-2 text-xs">
+                {annualQuotaRows.map((quota) => (
+                  <div
+                    className="flex items-center justify-between rounded-md bg-slate-50 px-2 py-1.5"
+                    key={quota.year}
+                  >
+                    <span>{quota.year}</span>
+                    <span className="font-semibold">{quota.remaining} hari</span>
+                  </div>
+                ))}
+              </div>
+            </MetricCard>
             <MetricCard
               icon={<Clock3 />}
               label="Perlu Keputusan"
@@ -2583,7 +2601,25 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
         ) : null}
 
         {viewRole === "pyb" ? (
-          <section className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 xl:gap-4">
+          <section className="grid grid-cols-1 gap-3 min-[430px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 xl:gap-4">
+            <MetricCard
+              icon={<CalendarDays />}
+              label="Sisa Cuti Pribadi"
+              value={`${annualEffectiveLeft} hari`}
+              detail={`Berjalan ${annualCurrentLeft} hari, saldo lama ${annualCarryOverLeft} hari`}
+            >
+              <div className="space-y-2 text-xs">
+                {annualQuotaRows.map((quota) => (
+                  <div
+                    className="flex items-center justify-between rounded-md bg-slate-50 px-2 py-1.5"
+                    key={quota.year}
+                  >
+                    <span>{quota.year}</span>
+                    <span className="font-semibold">{quota.remaining} hari</span>
+                  </div>
+                ))}
+              </div>
+            </MetricCard>
             <MetricCard
               icon={<ShieldCheck />}
               label="Menunggu Keputusan Final"

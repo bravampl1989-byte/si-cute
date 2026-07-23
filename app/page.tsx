@@ -601,6 +601,7 @@ function HomeContent() {
     description: string;
   } | null>(null);
   const [attachmentPreview, setAttachmentPreview] = useState<LeaveRequest | null>(null);
+  const [pdfPreview, setPdfPreview] = useState<LeaveRequest | null>(null);
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [fonnteToken, setFonnteToken] = useState("");
   const [fonnteTokenStatus, setFonnteTokenStatus] = useState(
@@ -958,6 +959,8 @@ function HomeContent() {
   const selectedPool =
     activeTab === "approval"
       ? visibleApprovals
+      : activeTab === "document" && (viewRole === "atasan" || viewRole === "pyb")
+        ? employeeRequests
       : activeTab === "history" && viewRole === "atasan" && historyScope === "pribadi"
         ? supervisorPersonalRequests
         : dashboardRequests;
@@ -4118,6 +4121,15 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                   </p>
                 </div>
                 <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  disabled={!hasSelectedRequest}
+                  onClick={() => setPdfPreview(selected)}
+                >
+                  <Eye />
+                  Preview Formulir
+                </Button>
+                <Button
                   className="w-full shadow-sm shadow-primary/20 sm:w-auto"
                   disabled={!hasSelectedRequest || selected.status !== "Disetujui"}
                   onClick={() => downloadPdf(selected)}
@@ -4126,22 +4138,14 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                   Unduh PDF Final
                 </Button>
               </div>
-              {hasSelectedRequest ? (
-                <DispositionSheet
-                  request={selected}
-                  employee={adminEmployees.find(
-                    (employee) => employee.nip === selected.nip,
-                  )}
-                  employees={adminEmployees}
-                />
-              ) : (
+              {!hasSelectedRequest ? (
                 <Card>
                   <CardContent className="p-6 text-sm text-muted-foreground">
                     Belum ada formulir cuti yang dapat dipratinjau. Formulir akan
                     muncul setelah pegawai membuat pengajuan cuti.
                   </CardContent>
                 </Card>
-              )}
+              ) : null}
             </section>
           </TabsContent>
         </Tabs>
@@ -4239,6 +4243,18 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                 />
               )}
             </div>
+          </section>
+        </div>
+      ) : null}
+
+      {pdfPreview ? (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/65 p-3 sm:p-6">
+          <section className="flex h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Preview formulir cuti">
+            <header className="flex items-center justify-between border-b px-4 py-3">
+              <div><p className="font-semibold">Preview formulir cuti</p><p className="text-sm text-muted-foreground">{pdfPreview.id} - {pdfPreview.employee}</p></div>
+              <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => downloadPdf(pdfPreview)}><Download className="h-4 w-4" />Unduh PDF</Button><Button size="icon" variant="ghost" onClick={() => setPdfPreview(null)} aria-label="Tutup preview"><X className="h-5 w-5" /></Button></div>
+            </header>
+            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3"><DispositionSheet request={pdfPreview} employee={adminEmployees.find((employee) => employee.nip === pdfPreview.nip)} employees={adminEmployees} /></div>
           </section>
         </div>
       ) : null}

@@ -862,10 +862,24 @@ function HomeContent() {
       if (!response.ok || !applyDashboard(result)) {
         throw new Error(result.error ?? "Data dashboard belum bisa dimuat.");
       }
-      window.sessionStorage.setItem(
-        dashboardCacheKey,
-        JSON.stringify({ expiresAt: Date.now() + 20_000, data: result }),
-      );
+      // Lampiran adalah data URL gambar/PDF yang dapat berukuran beberapa MB.
+      // Jangan masukkan ke cache browser karena quota sessionStorage sangat kecil.
+      const cacheData: DashboardResult = {
+        ...result,
+        requests: result.requests?.map(({ attachmentUrl: _attachmentUrl, ...request }) => request),
+      };
+      try {
+        window.sessionStorage.setItem(
+          dashboardCacheKey,
+          JSON.stringify({ expiresAt: Date.now() + 20_000, data: cacheData }),
+        );
+      } catch {
+        // Bersihkan cache dashboard lama yang mungkin sudah memuat lampiran besar.
+        for (let index = window.sessionStorage.length - 1; index >= 0; index -= 1) {
+          const key = window.sessionStorage.key(index);
+          if (key?.startsWith("cutipns:dashboard:")) window.sessionStorage.removeItem(key);
+        }
+      }
     } catch (error) {
       showToast(
         error instanceof Error ? error.message : "Data dashboard belum bisa dimuat.",

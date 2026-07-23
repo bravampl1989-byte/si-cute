@@ -4712,7 +4712,7 @@ function getNavigationItems(viewRole: ViewRole, activeTab: string) {
       icon: ClipboardList,
       tab: "pengajuan",
       active: activeTab === "pengajuan",
-      hideForAdmin: true,
+      hideForAdminAndPyb: true,
     },
     {
       label: "Persetujuan",
@@ -4769,7 +4769,8 @@ function getNavigationItems(viewRole: ViewRole, activeTab: string) {
     },
   ].filter(
     (item) =>
-      (!item.adminOnly || isAdmin) && (!item.hideForAdmin || !isAdmin),
+      (!item.adminOnly || isAdmin) &&
+      (!item.hideForAdminAndPyb || (viewRole !== "admin" && viewRole !== "pyb")),
   );
 }
 

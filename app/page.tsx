@@ -1879,24 +1879,6 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       ["5. Cuti Karena Alasan Penting", "6. Cuti di Luar Tanggungan Negara"],
     ];
     const submissionDate = request.submittedAt;
-    const ymd = (dateText: string) => {
-      const [day, month, year] = dateText.split(" ");
-      const monthMap: Record<string, string> = {
-        Januari: "01",
-        Februari: "02",
-        Maret: "03",
-        April: "04",
-        Mei: "05",
-        Juni: "06",
-        Juli: "07",
-        Agustus: "08",
-        September: "09",
-        Oktober: "10",
-        November: "11",
-        Desember: "12",
-      };
-      return `${year}-${monthMap[month] ?? "01"}-${day.padStart(2, "0")}`;
-    };
     const isSelectedLeave = (label: string) =>
       label.toLowerCase().includes(selectedLeaveType.toLowerCase());
     const drawCell = (
@@ -1989,9 +1971,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       drawCell("Selama", 15, 129, 25, 7, { bold: true });
       drawCell(`${request.days} hari`, 40, 129, 45, 7);
       drawCell("Mulai tanggal", 85, 129, 32, 7, { bold: true });
-      drawCell(ymd(request.start), 117, 129, 33, 7, { align: "center" });
+      drawCell(request.start, 117, 129, 33, 7, { align: "center", fontSize: 5.5 });
       drawCell("s.d.", 150, 129, 12, 7, { align: "center" });
-      drawCell(ymd(request.end), 162, 129, 33, 7, { align: "center" });
+      drawCell(request.end, 162, 129, 33, 7, { align: "center", fontSize: 5.5 });
 
       sectionTitle("V. CATATAN CUTI", 142);
       drawCell("1. CUTI TAHUNAN", 15, 147, 35, 24, { bold: true, fontSize: 6.2 });
@@ -2124,9 +2106,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     drawCell("Selama", 15, 122, 25, 7, { bold: true });
     drawCell(`${request.days} hari kerja`, 40, 122, 45, 7);
     drawCell("Mulai tanggal", 85, 122, 32, 7, { bold: true });
-    drawCell(ymd(request.start), 117, 122, 33, 7, { align: "center" });
+    drawCell(request.start, 117, 122, 33, 7, { align: "center", fontSize: 5.5 });
     drawCell("s/d", 150, 122, 12, 7, { align: "center" });
-    drawCell(ymd(request.end), 162, 122, 33, 7, { align: "center" });
+    drawCell(request.end, 162, 122, 33, 7, { align: "center", fontSize: 5.5 });
 
     sectionTitle("V. CATATAN CUTI", 132);
     drawCell("1. CUTI TAHUNAN", 15, 137, 70, 6, { bold: true });

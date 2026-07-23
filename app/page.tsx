@@ -707,9 +707,6 @@ function HomeContent() {
   }, [activeTab]);
 
   useEffect(() => {
-    const savedToken = window.localStorage.getItem("cutipns:fonnte-token") ?? "";
-    setFonnteToken(savedToken);
-
     fetch("/api/admin/whatsapp-settings")
       .then((response) => response.json())
       .then(
@@ -1516,7 +1513,8 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
         throw new Error(result.error ?? "Token gagal disimpan.");
       }
 
-      window.localStorage.setItem("cutipns:fonnte-token", fonnteToken);
+      setFonnteToken("");
+      window.localStorage.removeItem("cutipns:fonnte-token");
       setFonnteTokenStatus(
         `Token database aktif${result.maskedToken ? ` (${result.maskedToken})` : ""}`,
       );

@@ -1,4 +1,4 @@
-import { getRuntimeFonnteToken } from "@/lib/whatsapp-settings";
+import { getDatabaseFonnteToken, getRuntimeFonnteToken } from "@/lib/whatsapp-settings";
 
 type SendWhatsAppInput = {
   to: string;
@@ -29,7 +29,10 @@ async function sendViaFonnte({
   to,
   message,
 }: SendWhatsAppInput): Promise<SendWhatsAppResult> {
-  const token = getRuntimeFonnteToken() ?? process.env.FONNTE_TOKEN;
+  const token =
+    getRuntimeFonnteToken() ??
+    (await getDatabaseFonnteToken()) ??
+    process.env.FONNTE_TOKEN;
 
   if (!token) {
     throw new Error("FONNTE_TOKEN is required when WHATSAPP_PROVIDER=fonnte");

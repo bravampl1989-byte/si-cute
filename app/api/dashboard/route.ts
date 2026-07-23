@@ -129,7 +129,7 @@ export async function GET(request: Request) {
         sql: `
           SELECT r.id, r.nip, r.jenis_cuti, r.tgl_mulai, r.tgl_selesai,
                  r.jumlah_hari, r.alasan, r.alamat_cuti, r.lampiran_url, r.no_surat, r.status,
-                 r.created_at, u.nama, u.masa_kerja_tahun, u.masa_kerja_bulan,
+                 r.created_at, u.nama, u.no_whatsapp, u.masa_kerja_tahun, u.masa_kerja_bulan,
                  COALESCE(a.nama, '-') AS atasan_nama,
                  ap.catatan
           FROM leave_requests r
@@ -242,6 +242,7 @@ export async function GET(request: Request) {
         days: Number(row.jumlah_hari),
         reason: String(row.alasan),
         address: String(row.alamat_cuti),
+        applicantPhone: String(row.no_whatsapp ?? ""),
         status: statusLabels[String(row.status)] ?? String(row.status),
         reviewer: String(row.atasan_nama ?? "-"),
         approver: pybName,

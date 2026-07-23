@@ -89,6 +89,7 @@ type LeaveRequest = {
   days: number;
   reason: string;
   address: string;
+  applicantPhone?: string;
   status: RequestStatus;
   reviewer: string;
   approver: string;
@@ -2013,7 +2014,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     sectionTitle("VI. ALAMAT SELAMA MENJALANKAN CUTI", 170);
     drawCell(request.address.toUpperCase(), 15, 175, 95, 40);
     drawCell("Telp.", 110, 175, 20, 7, { bold: true, align: "center", fontSize: 6.2 });
-    drawCell("085234566541", 130, 175, 65, 7, { align: "center" });
+    drawCell(request.applicantPhone || "-", 130, 175, 65, 7, { align: "center" });
     drawCell("", 110, 182, 85, 33);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(6.2);
@@ -5735,7 +5736,7 @@ function DispositionSheet({
                 {request.address.toUpperCase()}
               </td>
               <PreviewLabel align="center">Telp.</PreviewLabel>
-              <PreviewCell>085234566541</PreviewCell>
+              <PreviewCell>{request.applicantPhone || "-"}</PreviewCell>
             </tr>
             <tr>
               <td className="border border-black p-2 text-center align-top" colSpan={2}>

@@ -6395,12 +6395,12 @@ function QrVerificationMark({ code, signature }: { code: string; signature?: str
   }, [code, signature]);
 
   return (
-    <div className="flex h-32 w-56 items-center justify-center bg-white p-1">
+    <div className="flex h-40 w-64 items-center justify-center overflow-hidden bg-white p-1">
       {imageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           alt="Tanda tangan manual"
-          className="max-h-full max-w-full object-contain"
+          className="h-full w-full scale-[2] object-contain"
           src={imageSrc}
         />
       ) : (

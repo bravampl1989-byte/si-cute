@@ -125,6 +125,7 @@ const pppkLeaveTypes = ["Cuti Tahunan", "Cuti Sakit", "Cuti Melahirkan"];
 const maxSupportingDocumentSize = 3 * 1024 * 1024;
 const employeeRowsPerPage = 10;
 const historyRowsPerPage = 10;
+const approvalRowsPerPage = 10;
 
 const monthOptions = [
   "Semua Bulan",
@@ -585,6 +586,7 @@ function HomeContent() {
   const [historyMonth, setHistoryMonth] = useState("Semua Bulan");
   const [historyYear, setHistoryYear] = useState(String(activeFiscalYear));
   const [historyPage, setHistoryPage] = useState(1);
+  const [approvalPage, setApprovalPage] = useState(1);
   const [employeeSearch, setEmployeeSearch] = useState("");
   const [employeePage, setEmployeePage] = useState(1);
   const [historyScope, setHistoryScope] = useState<"bawahan" | "pribadi">(
@@ -702,6 +704,10 @@ function HomeContent() {
     setEmployeeSearch("");
     setEmployeePage(1);
   }, [activeTab, viewRole, activeAccountNip]);
+
+  useEffect(() => {
+    setApprovalPage(1);
+  }, [viewRole, activeAccountNip]);
 
   useEffect(() => {
     fetch("/api/admin/whatsapp-settings")
@@ -978,6 +984,23 @@ function HomeContent() {
           ? request.status === "Pending Pejabat"
           : true,
   );
+  const approvalTotalPages = Math.max(
+    1,
+    Math.ceil(visibleApprovals.length / approvalRowsPerPage),
+  );
+  const safeApprovalPage = Math.min(approvalPage, approvalTotalPages);
+  const paginatedApprovals = visibleApprovals.slice(
+    (safeApprovalPage - 1) * approvalRowsPerPage,
+    safeApprovalPage * approvalRowsPerPage,
+  );
+  const approvalPageStart =
+    visibleApprovals.length === 0
+      ? 0
+      : (safeApprovalPage - 1) * approvalRowsPerPage + 1;
+  const approvalPageEnd = Math.min(
+    safeApprovalPage * approvalRowsPerPage,
+    visibleApprovals.length,
+  );
   const selectedPool =
     activeTab === "approval"
       ? visibleApprovals
@@ -1195,6 +1218,12 @@ function HomeContent() {
       setHistoryPage(historyTotalPages);
     }
   }, [historyPage, historyTotalPages]);
+
+  useEffect(() => {
+    if (approvalPage > approvalTotalPages) {
+      setApprovalPage(approvalTotalPages);
+    }
+  }, [approvalPage, approvalTotalPages]);
 
   const newRequestDays = useMemo(
     () => diffDays(startDate, endDate, holidayDates),
@@ -3036,7 +3065,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                       Belum ada pengajuan cuti yang perlu diproses.
                     </div>
                   ) : (
-                    visibleApprovals.map((request) => (
+                    paginatedApprovals.map((request) => (
                     <button
                       key={request.id}
                       onClick={() => setSelectedId(request.id)}
@@ -3070,6 +3099,41 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                     </button>
                     ))
                   )}
+                  {visibleApprovals.length > 0 ? (
+                    <div className="flex flex-col gap-3 border-t pt-4 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                      <span>
+                        Menampilkan {approvalPageStart}-{approvalPageEnd} dari{" "}
+                        {visibleApprovals.length} pengajuan • Halaman{" "}
+                        {safeApprovalPage} dari {approvalTotalPages}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={safeApprovalPage <= 1}
+                          onClick={() =>
+                            setApprovalPage((current) => Math.max(1, current - 1))
+                          }
+                        >
+                          Sebelumnya
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={safeApprovalPage >= approvalTotalPages}
+                          onClick={() =>
+                            setApprovalPage((current) =>
+                              Math.min(approvalTotalPages, current + 1),
+                            )
+                          }
+                        >
+                          Berikutnya
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
 

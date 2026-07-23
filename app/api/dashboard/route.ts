@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 import { client, isDatabaseConfigured } from "@/lib/db/client";
 import { ensureRequestSignatures } from "@/lib/request-signatures";
 import { ensureAnnualQuotaRollover } from "@/lib/annual-rollover";
+import { ensureServicePeriodsCurrent } from "@/lib/service-periods";
 import {
   dashboardCacheSeconds,
   getDashboardCache,
+  invalidateDashboardCache,
   setDashboardCache,
 } from "@/lib/dashboard-cache";
 
@@ -64,6 +66,7 @@ function formatDate(value: string | null) {
 
 export async function GET(request: Request) {
   try {
+    if (await ensureServicePeriodsCurrent()) invalidateDashboardCache();
     await ensureAnnualQuotaRollover();
     await ensureRequestSignatures();
     const { searchParams } = new URL(request.url);

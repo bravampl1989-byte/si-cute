@@ -96,6 +96,9 @@ type LeaveRequest = {
   attachmentName?: string | null;
   attachmentType?: string | null;
   attachmentUrl?: string | null;
+  applicantSignature?: string | null;
+  reviewerSignature?: string | null;
+  approverSignature?: string | null;
     noSurat?: string | null;
 };
 
@@ -1217,6 +1220,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
           reason,
           address,
           attachment,
+          signature: manualSignatures[applicantNip],
         }),
       });
       const result = (await response.json()) as {
@@ -1314,6 +1318,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
           note: finalNote,
           approverNip: accountNip,
           noSurat: adminSetsNoSurat ? noSurat : undefined,
+          signature: (viewRole === "atasan" || viewRole === "pyb") && isApprovalDecision ? manualSignatures[accountNip] : undefined,
         }),
       });
       const result = (await response.json()) as {
@@ -1723,10 +1728,10 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     const hasReviewerSignature = request.status !== "Pending Atasan";
     const hasApproverSignature =
       request.status === "Disetujui" || request.status === "Ditolak";
-    const employeeMark = manualSignatures[request.nip] ?? "";
-    const reviewerMark = manualSignatures[reviewerEmployee?.nip ?? ""] ?? "";
+    const employeeMark = request.applicantSignature ?? manualSignatures[request.nip] ?? "";
+    const reviewerMark = request.reviewerSignature ?? manualSignatures[reviewerEmployee?.nip ?? ""] ?? "";
     const approverMark =
-      manualSignatures[approverEmployee?.nip ?? currentPybNip] ?? "";
+      request.approverSignature ?? manualSignatures[approverEmployee?.nip ?? currentPybNip] ?? "";
     const selectedLeaveType = request.type.replace("Cuti ", "");
     const leaveRows = [
       ["1. Cuti Tahunan", "2. Cuti Besar"],
@@ -5718,6 +5723,7 @@ function DispositionSheet({
                 <p>Hormat saya,</p>
                 <div className="my-2 flex justify-center">
                   <QrVerificationMark
+                    signature={request.applicantSignature}
                     code={buildVerificationPayload(
                       request,
                       request.employee.toUpperCase(),
@@ -5779,6 +5785,7 @@ function DispositionSheet({
                   <>
                     <div className="my-2 flex justify-center">
                       <QrVerificationMark
+                        signature={request.reviewerSignature}
                         code={buildVerificationPayload(
                           request,
                           request.reviewer.toUpperCase(),
@@ -5845,6 +5852,7 @@ function DispositionSheet({
                   <>
                     <div className="my-2 flex justify-center">
                       <QrVerificationMark
+                        signature={request.approverSignature}
                         code={buildVerificationPayload(
                           request,
                           request.approver.toUpperCase(),
@@ -6056,6 +6064,7 @@ function PppkDispositionSheet({
                 <p>Hormat saya,</p>
                 <div className="my-2 flex justify-center">
                   <QrVerificationMark
+                    signature={request.applicantSignature}
                     code={buildVerificationPayload(
                       request,
                       request.employee.toUpperCase(),
@@ -6098,6 +6107,7 @@ function PppkDispositionSheet({
                     <p>Pejabat yang memberi pertimbangan,</p>
                     <div className="my-2 flex justify-center">
                       <QrVerificationMark
+                        signature={request.reviewerSignature}
                         code={buildVerificationPayload(
                           request,
                           request.reviewer.toUpperCase(),
@@ -6146,6 +6156,7 @@ function PppkDispositionSheet({
                     <p>Pejabat yang berwenang memberikan cuti,</p>
                     <div className="my-2 flex justify-center">
                       <QrVerificationMark
+                        signature={request.approverSignature}
                         code={buildVerificationPayload(
                           request,
                           request.approver.toUpperCase(),
@@ -6348,7 +6359,7 @@ function SignaturePad({
   );
 }
 
-function QrVerificationMark({ code }: { code: string }) {
+function QrVerificationMark({ code, signature }: { code: string; signature?: string | null }) {
   const [imageSrc, setImageSrc] = useState("");
 
   useEffect(() => {
@@ -6358,11 +6369,11 @@ function QrVerificationMark({ code }: { code: string }) {
       const saved = JSON.parse(
         window.localStorage.getItem("cutipns:manual-signatures") ?? "{}",
       ) as Record<string, string>;
-      setImageSrc(saved[nip] ?? "");
+      setImageSrc(signature ?? saved[nip] ?? "");
     } catch {
       setImageSrc("");
     }
-  }, [code]);
+  }, [code, signature]);
 
   return (
     <div className="flex h-16 w-28 items-center justify-center bg-white p-1">

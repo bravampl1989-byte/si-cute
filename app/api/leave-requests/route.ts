@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { GET as getDashboard } from "@/app/api/dashboard/route";
 import { db } from "@/lib/db/client";
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { ensureRequestSignatures, saveRequestSignature } from "@/lib/request-signatures";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,7 @@ export async function POST(request: Request) {
       reason?: string;
       address?: string;
       attachment?: { dataUrl?: string } | null;
+      signature?: string;
     };
     const type = leaveTypeValues[body.type ?? ""];
     if (
@@ -77,6 +79,7 @@ export async function POST(request: Request) {
       );
     }
 
+    await ensureRequestSignatures();
     const createdRequest = await db.run(sql`
       INSERT INTO leave_requests
         (nip, jenis_cuti, tgl_mulai, tgl_selesai, jumlah_hari, alasan, alamat_cuti, lampiran_url, status, created_at, updated_at)
@@ -88,6 +91,7 @@ export async function POST(request: Request) {
     `);
 
     const requestId = Number(createdRequest.lastInsertRowid);
+    if (body.signature) await saveRequestSignature(requestId, "pemohon", body.nip, body.signature);
     const applicant = await db.all<{ nama: string }>(sql`
       SELECT nama FROM users WHERE nip = ${body.nip} LIMIT 1
     `);
@@ -150,6 +154,7 @@ export async function PATCH(request: Request) {
       note?: string;
       approverNip?: string;
       noSurat?: string;
+      signature?: string;
     };
     const numericId = Number(body.dbId ?? String(body.id ?? "").split("-").pop());
     const status = statusValues[body.status ?? ""];
@@ -164,6 +169,7 @@ export async function PATCH(request: Request) {
       SELECT status, no_surat AS noSurat FROM leave_requests WHERE id = ${numericId}
     `);
     const currentStatus = currentRows[0]?.status;
+    await ensureRequestSignatures();
     const currentNoSurat = currentRows[0]?.noSurat;
     const nextApprovalStatus: Record<string, string> = {
       pending_admin: "pending_atasan",
@@ -230,6 +236,8 @@ export async function PATCH(request: Request) {
            ${body.note ?? ""}, CURRENT_TIMESTAMP)
       `);
     }
+    if (currentStatus === "pending_atasan" && status === "pending_pejabat" && body.signature) await saveRequestSignature(numericId, "atasan", body.approverNip, body.signature);
+    if (currentStatus === "pending_pejabat" && status === "disetujui" && body.signature) await saveRequestSignature(numericId, "pyb", body.approverNip, body.signature);
 
     if (currentStatus === "pending_admin" && status === "pending_atasan") {
       const recipients = await db.all<{

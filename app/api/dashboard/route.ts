@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { client, isDatabaseConfigured } from "@/lib/db/client";
+import { ensureRequestSignatures } from "@/lib/request-signatures";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,7 @@ function formatDate(value: string | null) {
 
 export async function GET(request: Request) {
   try {
+    await ensureRequestSignatures();
     const { searchParams } = new URL(request.url);
     const role = searchParams.get("role") ?? "admin";
     const nip = searchParams.get("nip")?.trim() ?? "";
@@ -127,7 +129,7 @@ export async function GET(request: Request) {
         sql: `
           SELECT r.id, r.nip, r.jenis_cuti, r.tgl_mulai, r.tgl_selesai,
                  r.jumlah_hari, r.alasan, r.alamat_cuti, r.lampiran_url, r.no_surat, r.status,
-                 r.created_at, u.nama,
+                 r.created_at, u.nama, u.masa_kerja_tahun, u.masa_kerja_bulan,
                  COALESCE(a.nama, '-') AS atasan_nama,
                  ap.catatan
           FROM leave_requests r
@@ -157,8 +159,9 @@ export async function GET(request: Request) {
           ORDER BY nama LIMIT 1
         `,
       },
+      { sql: `SELECT request_id, role, signature_data FROM request_signatures` },
     ], "read");
-    const [employeeRows, roleRows, quotaRows, requestRows, pybRows] = results.map(
+    const [employeeRows, roleRows, quotaRows, requestRows, pybRows, signatureRows] = results.map(
       (result) => result.rows as unknown as Row[],
     );
 
@@ -219,6 +222,8 @@ export async function GET(request: Request) {
       };
     });
 
+    const signatures = new Map<string, Record<string, string>>();
+    for (const row of signatureRows) signatures.set(String(row.request_id), { ...(signatures.get(String(row.request_id)) ?? {}), [String(row.role)]: String(row.signature_data) });
     const pybName = String(pybRows[0]?.nama ?? "Pejabat Berwenang");
     const requests = requestRows.map((row) => {
       const createdAt = String(row.created_at ?? "");
@@ -232,8 +237,8 @@ export async function GET(request: Request) {
         start: formatDate(String(row.tgl_mulai)),
         end: formatDate(String(row.tgl_selesai)),
         submittedAt: formatDate(createdAt),
-        serviceYearsAtSubmission: 0,
-        serviceMonthsAtSubmission: 0,
+        serviceYearsAtSubmission: Number(row.masa_kerja_tahun ?? 0),
+        serviceMonthsAtSubmission: Number(row.masa_kerja_bulan ?? 0),
         days: Number(row.jumlah_hari),
         reason: String(row.alasan),
         address: String(row.alamat_cuti),
@@ -247,6 +252,9 @@ export async function GET(request: Request) {
           : null,
         attachmentUrl: row.lampiran_url ? String(row.lampiran_url) : null,
         noSurat: row.no_surat ? String(row.no_surat) : null,
+        applicantSignature: signatures.get(String(row.id))?.pemohon ?? null,
+        reviewerSignature: signatures.get(String(row.id))?.atasan ?? null,
+        approverSignature: signatures.get(String(row.id))?.pyb ?? null,
       };
     });
 

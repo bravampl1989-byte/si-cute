@@ -36,19 +36,28 @@ export async function removeExpiredHolidays(year = getJakartaYear()) {
   await db.run(sql`DELETE FROM holidays WHERE date < ${`${year}-01-01`}`);
 }
 
-export async function ensureNewYearHoliday(year = getJakartaYear()) {
+export async function ensureFixedNationalHolidays(year = getJakartaYear()) {
   await ensureHolidaysTable();
-  await db.run(sql`
-    INSERT INTO holidays (date, label)
-    VALUES (${`${year}-01-01`}, ${"Tahun Baru Masehi"})
-    ON CONFLICT(date) DO NOTHING
-  `);
+  const holidays = [
+    { date: `${year}-01-01`, label: "Tahun Baru Masehi" },
+    { date: `${year}-05-01`, label: "Hari Buruh Internasional" },
+    { date: `${year}-06-01`, label: "Hari Lahir Pancasila" },
+    { date: `${year}-08-17`, label: "Hari Kemerdekaan Republik Indonesia" },
+    { date: `${year}-12-25`, label: "Hari Raya Natal" },
+  ];
+  for (const holiday of holidays) {
+    await db.run(sql`
+      INSERT INTO holidays (date, label)
+      VALUES (${holiday.date}, ${holiday.label})
+      ON CONFLICT(date) DO NOTHING
+    `);
+  }
 }
 
 export async function getHolidayDates() {
   await ensureHolidaysTable();
   await removeExpiredHolidays();
-  await ensureNewYearHoliday();
+  await ensureFixedNationalHolidays();
   const rows = await db.all<HolidayDate>(sql`
     SELECT date, label FROM holidays ORDER BY date ASC
   `);

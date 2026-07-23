@@ -2253,6 +2253,95 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     showToast("Rekap dokumen berhasil diunduh.");
   }
 
+  async function downloadEmployeeQuotaPdf() {
+    if (adminEmployees.length === 0) {
+      showToast("Belum ada data pegawai untuk direkap.");
+      return;
+    }
+
+    const { jsPDF } = await import("jspdf");
+    const pdf = new jsPDF({
+      orientation: "landscape",
+      unit: "mm",
+      format: "a4",
+      compress: true,
+    });
+    const years = [activeFiscalYear, activeFiscalYear - 1, activeFiscalYear - 2];
+    const columns = [
+      { label: "No", width: 8 },
+      { label: "NIP", width: 30 },
+      { label: "Nama Pegawai", width: 45 },
+      { label: "Jabatan", width: 43 },
+      { label: "Peran", width: 32 },
+      { label: "Gol/Ruang", width: 25 },
+      { label: "Masa Kerja", width: 22 },
+      ...years.map((year) => ({ label: `Sisa ${year}`, width: 18 })),
+    ];
+    const drawHeader = () => {
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(12);
+      pdf.text("REKAP PEGAWAI DAN KUOTA CUTI", 148.5, 12, { align: "center" });
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7);
+      pdf.text(`Pengadilan Agama Sampang - Tahun ${activeFiscalYear}`, 148.5, 17, {
+        align: "center",
+      });
+      let x = 10;
+      pdf.setFillColor(226, 232, 240);
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(6.5);
+      columns.forEach((column) => {
+        pdf.rect(x, 22, column.width, 7, "F");
+        pdf.setTextColor(15, 23, 42);
+        pdf.text(column.label, x + column.width / 2, 26.5, { align: "center" });
+        x += column.width;
+      });
+      pdf.setTextColor(0, 0, 0);
+      return 29;
+    };
+
+    let y = drawHeader();
+    [...adminEmployees]
+      .sort((a, b) => a.name.localeCompare(b.name, "id"))
+      .forEach((employee, index) => {
+        const values = [
+          String(index + 1),
+          employee.nip,
+          employee.name,
+          employee.position,
+          formatEmployeeRoles(employee),
+          hasEmployeeRole(employee, "PPPK") ? "-" : employee.grade,
+          `${employee.serviceYears} th ${employee.serviceMonths} bl`,
+          ...years.map((year) => `${employee.quotas.find((quota) => quota.year === year)?.remaining ?? 0} hari`),
+        ];
+        const lines = values.map((value, valueIndex) =>
+          pdf.splitTextToSize(value, columns[valueIndex].width - 2),
+        );
+        const rowHeight = Math.max(7, ...lines.map((value) => value.length * 3.4 + 2));
+        if (y + rowHeight > 200) {
+          pdf.addPage();
+          y = drawHeader();
+        }
+        let x = 10;
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(6.2);
+        columns.forEach((column, columnIndex) => {
+          pdf.rect(x, y, column.width, rowHeight);
+          const center = columnIndex === 0 || columnIndex >= columns.length - years.length;
+          pdf.text(lines[columnIndex], center ? x + column.width / 2 : x + 1, y + 4, {
+            align: center ? "center" : "left",
+          });
+          x += column.width;
+        });
+        y += rowHeight;
+      });
+
+    pdf.setFontSize(6.5);
+    pdf.text(`Total pegawai: ${adminEmployees.length}`, 10, 205);
+    pdf.save(`REKAP-PEGAWAI-DAN-KUOTA-${activeFiscalYear}.pdf`);
+    showToast("Rekap pegawai dan kuota berhasil diunduh dalam PDF.");
+  }
+
   function logout() {
     window.localStorage.removeItem("cutipns-user");
     router.push("/login");
@@ -3215,10 +3304,10 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                       <Button
                         variant="outline"
                         className="h-auto min-h-12 justify-start whitespace-normal px-3 py-3 text-left leading-snug [&_svg]:mr-1 [&_svg]:size-4"
-                        onClick={downloadRecap}
+                        onClick={downloadEmployeeQuotaPdf}
                       >
-                        <FileText />
-                        <span>Rekap Dokumen</span>
+                        <Download />
+                        <span>Rekap Pegawai & Kuota (PDF)</span>
                       </Button>
                     </div>
                   </div>

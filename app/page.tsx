@@ -1914,9 +1914,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       pdf.text("Pejabat yang memberi pertimbangan,", 145, 259, { align: "center" });
       if (hasReviewerSignature) {
         if (reviewerMark) {
-          pdf.addImage(reviewerMark, "PNG", 132, 260, 26, 12);
+          pdf.addImage(reviewerMark, "PNG", 132, 262, 26, 7);
         }
-        pdf.text("Telah ditandatangani oleh", 145, 272, { align: "center" });
+        pdf.text("Telah ditandatangani oleh", 145, 271, { align: "center" });
         pdf.setFont("helvetica", "bold");
         pdf.text(request.reviewer.toUpperCase(), 145, 274, { align: "center" });
       } else {
@@ -2069,13 +2069,13 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     pdf.text("Pejabat yang memberi pertimbangan,", 152.5, 239, { align: "center" });
     if (hasReviewerSignature) {
       if (reviewerMark) {
-        pdf.addImage(reviewerMark, "PNG", 139.5, 240, 26, 13);
+        pdf.addImage(reviewerMark, "PNG", 139.5, 242, 26, 8);
       }
-      pdf.text("Telah ditandatangani oleh", 152.5, 254, { align: "center" });
+      pdf.text("Telah ditandatangani oleh", 152.5, 252, { align: "center" });
       pdf.setFont("helvetica", "bold");
-      pdf.text(request.reviewer.toUpperCase(), 152.5, 256.5, { align: "center" });
+      pdf.text(request.reviewer.toUpperCase(), 152.5, 254.5, { align: "center" });
       pdf.setFont("helvetica", "normal");
-      pdf.text(`NIP. ${reviewerEmployee?.nip ?? "-"}`, 152.5, 258.5, {
+      pdf.text(`NIP. ${reviewerEmployee?.nip ?? "-"}`, 152.5, 257, {
         align: "center",
       });
     } else {
@@ -2108,7 +2108,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     });
     if (hasApproverSignature) {
       if (approverMark) {
-        pdf.addImage(approverMark, "PNG", 139.5, 279.5, 26, 12);
+        pdf.addImage(approverMark, "PNG", 139.5, 283, 26, 7);
       }
       pdf.text("Telah ditandatangani oleh", 152.5, 291, { align: "center" });
       pdf.setFont("helvetica", "bold");

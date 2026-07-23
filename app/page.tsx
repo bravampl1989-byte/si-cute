@@ -2001,36 +2001,36 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
 
     sectionTitle("V. CATATAN CUTI", 132);
     drawCell("1. CUTI TAHUNAN", 15, 137, 70, 6, { bold: true });
-    drawCell("PARAF PETUGAS CUTI", 85, 137, 25, 6, { bold: true, align: "center", fontSize: 5.8 });
-    drawCell("2. CUTI BESAR", 110, 137, 85, 6, { bold: true });
+    drawCell("PARAF PETUGAS CUTI", 85, 137, 20, 6, { bold: true, align: "center", fontSize: 5.8 });
+    drawCell("2. CUTI BESAR", 105, 137, 90, 6, { bold: true });
     drawCell("Tahun", 15, 143, 22, 6, { bold: true });
     drawCell("Sisa", 37, 143, 20, 6, { bold: true });
     drawCell("Keterangan", 57, 143, 28, 6, { bold: true });
-    drawCell("", 85, 143, 25, 24);
-    drawCell("3. CUTI SAKIT", 110, 143, 85, 6, { bold: true });
+    drawCell("", 85, 143, 20, 24);
+    drawCell("3. CUTI SAKIT", 105, 143, 90, 6, { bold: true });
     drawCell(String(annualStatementRows[0]?.year ?? activeFiscalYear - 2), 15, 149, 22, 6);
     drawCell(String(annualStatementRows[0]?.remaining ?? 0), 37, 149, 20, 6);
     drawCell(annualStatementRows[0]?.note ?? "Tidak tersedia", 57, 149, 28, 6, { fontSize: 5.7 });
-    drawCell("4. CUTI MELAHIRKAN", 110, 149, 85, 6, { bold: true });
+    drawCell("4. CUTI MELAHIRKAN", 105, 149, 90, 6, { bold: true });
     drawCell(String(annualStatementRows[1]?.year ?? activeFiscalYear - 1), 15, 155, 22, 6);
     drawCell(String(annualStatementRows[1]?.remaining ?? 0), 37, 155, 20, 6);
     drawCell(annualStatementRows[1]?.note ?? "Tidak tersedia", 57, 155, 28, 6, { fontSize: 5.7 });
-    drawCell("5. CUTI KARENA ALASAN PENTING", 110, 155, 85, 6, { bold: true, fontSize: 6.2 });
+    drawCell("5. CUTI KARENA ALASAN PENTING", 105, 155, 90, 6, { bold: true, fontSize: 6.2 });
     drawCell(String(annualStatementRows[2]?.year ?? activeFiscalYear), 15, 161, 22, 6);
     drawCell(String(annualStatementRows[2]?.remaining ?? 0), 37, 161, 20, 6);
     drawCell(annualStatementRows[2]?.note ?? "Tidak tersedia", 57, 161, 28, 6, { fontSize: 5.7 });
-    drawCell("6. CUTI DI LUAR TANGGUNGAN NEGARA", 110, 161, 85, 6, { bold: true, fontSize: 6.2 });
+    drawCell("6. CUTI DI LUAR TANGGUNGAN NEGARA", 105, 161, 90, 6, { bold: true, fontSize: 6.2 });
 
     sectionTitle("VI. ALAMAT SELAMA MENJALANKAN CUTI", 170);
-    drawCell(request.address.toUpperCase(), 15, 175, 95, 40);
-    drawCell("Telp.", 110, 175, 20, 7, { bold: true, align: "center", fontSize: 6.2 });
-    drawCell(request.applicantPhone || "-", 130, 175, 65, 7, { align: "center" });
-    drawCell("", 110, 182, 85, 33);
+    drawCell(request.address.toUpperCase(), 15, 175, 90, 40);
+    drawCell("Telp.", 105, 175, 22, 7, { bold: true, align: "center", fontSize: 6.2 });
+    drawCell(request.applicantPhone || "-", 127, 175, 68, 7, { align: "center" });
+    drawCell("", 105, 182, 90, 33);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(6.2);
-    pdf.text("Hormat saya,", 152.5, 187, { align: "center" });
+    pdf.text("Hormat saya,", 150, 187, { align: "center" });
     if (employeeMark) {
-      pdf.addImage(employeeMark, "PNG", 139.5, 188, 26, 13);
+      pdf.addImage(employeeMark, "PNG", 137, 188, 26, 13);
     }
     pdf.text(
       [
@@ -2038,7 +2038,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
         request.employee.toUpperCase(),
         "NIP. " + request.nip,
       ],
-      152.5,
+      150,
       206,
       {
         align: "center",
@@ -2061,28 +2061,28 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     drawCell(request.status === "Perbaikan" ? "✓" : "", 60, 229, 45, 6, { align: "center", bold: true, fontSize: 9 });
     drawCell("", 105, 229, 45, 6, { align: "center" });
     drawCell(request.status === "Ditolak" ? "✓" : "", 150, 229, 45, 6, { align: "center", bold: true, fontSize: 9 });
-    drawCell("", 15, 235, 95, 24);
-    drawCell("", 110, 235, 85, 24);
+    drawCell("", 15, 235, 90, 24);
+    drawCell("", 105, 235, 90, 24);
 
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(5.6);
-    pdf.text("Pejabat yang memberi pertimbangan,", 152.5, 239, { align: "center" });
+    pdf.text("Pejabat yang memberi pertimbangan,", 150, 239, { align: "center" });
     if (hasReviewerSignature) {
       if (reviewerMark) {
-        pdf.addImage(reviewerMark, "PNG", 139.5, 242, 26, 8);
+        pdf.addImage(reviewerMark, "PNG", 137, 242, 26, 8);
       }
-      pdf.text("Telah ditandatangani oleh", 152.5, 252, { align: "center" });
+      pdf.text("Telah ditandatangani oleh", 150, 252, { align: "center" });
       pdf.setFont("helvetica", "bold");
-      pdf.text(request.reviewer.toUpperCase(), 152.5, 254.5, { align: "center" });
+      pdf.text(request.reviewer.toUpperCase(), 150, 254.5, { align: "center" });
       pdf.setFont("helvetica", "normal");
-      pdf.text(`NIP. ${reviewerEmployee?.nip ?? "-"}`, 152.5, 257, {
+      pdf.text(`NIP. ${reviewerEmployee?.nip ?? "-"}`, 150, 257, {
         align: "center",
       });
     } else {
       pdf.setFont("helvetica", "bold");
-      pdf.text("DRAFT", 152.5, 247, { align: "center" });
+      pdf.text("DRAFT", 150, 247, { align: "center" });
       pdf.setFont("helvetica", "normal");
-      pdf.text("Menunggu tanda tangan atasan langsung", 152.5, 251, {
+      pdf.text("Menunggu tanda tangan atasan langsung", 150, 251, {
         align: "center",
       });
     }
@@ -2099,32 +2099,32 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     drawCell("", 60, 272, 45, 5, { align: "center" });
     drawCell("", 105, 272, 45, 5, { align: "center" });
     drawCell(request.status === "Ditolak" ? "✓" : "", 150, 272, 45, 5, { align: "center", bold: true, fontSize: 8 });
-    drawCell("", 15, 277, 95, 19);
-    drawCell("", 110, 277, 85, 19);
+    drawCell("", 15, 277, 90, 19);
+    drawCell("", 105, 277, 90, 19);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(5.3);
-    pdf.text("Pejabat yang berwenang memberikan cuti,", 152.5, 280, {
+    pdf.text("Pejabat yang berwenang memberikan cuti,", 150, 280, {
       align: "center",
     });
     if (hasApproverSignature) {
       if (approverMark) {
-        pdf.addImage(approverMark, "PNG", 139.5, 283, 26, 7);
+        pdf.addImage(approverMark, "PNG", 137, 283, 26, 7);
       }
-      pdf.text("Telah ditandatangani oleh", 152.5, 291, { align: "center" });
+      pdf.text("Telah ditandatangani oleh", 150, 291, { align: "center" });
       pdf.setFont("helvetica", "bold");
-      pdf.text(request.approver.toUpperCase(), 152.5, 293, { align: "center" });
+      pdf.text(request.approver.toUpperCase(), 150, 293, { align: "center" });
       pdf.setFont("helvetica", "normal");
       pdf.text(
         `NIP. ${request.approver === currentPybName ? currentPybNip : "-"}`,
-        152.5,
+        150,
         295,
         { align: "center" },
       );
     } else {
       pdf.setFont("helvetica", "bold");
-      pdf.text("DRAFT", 152.5, 286, { align: "center" });
+      pdf.text("DRAFT", 150, 286, { align: "center" });
       pdf.setFont("helvetica", "normal");
-      pdf.text("Menunggu keputusan pejabat berwenang", 152.5, 290, {
+      pdf.text("Menunggu keputusan pejabat berwenang", 150, 290, {
         align: "center",
       });
     }

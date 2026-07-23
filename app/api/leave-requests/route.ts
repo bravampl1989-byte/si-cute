@@ -328,6 +328,86 @@ export async function PATCH(request: Request) {
         }
       }
     }
+
+    if (
+      currentStatus === "pending_pejabat" &&
+      ["disetujui", "ditolak", "perbaikan"].includes(status)
+    ) {
+      const notificationRows = await db.all<{
+        namaPegawai: string;
+        nipPegawai: string;
+        jenisCuti: string;
+        tglMulai: string;
+        tglSelesai: string;
+        jumlahHari: number;
+        noSurat: string | null;
+        noWhatsappPemohon: string;
+      }>(sql`
+        SELECT u.nama AS namaPegawai, r.nip AS nipPegawai,
+               r.jenis_cuti AS jenisCuti, r.tgl_mulai AS tglMulai,
+               r.tgl_selesai AS tglSelesai, r.jumlah_hari AS jumlahHari,
+               r.no_surat AS noSurat, u.no_whatsapp AS noWhatsappPemohon
+        FROM leave_requests r
+        JOIN users u ON u.nip = r.nip
+        WHERE r.id = ${numericId}
+      `);
+      const requestInfo = notificationRows[0];
+      const admins = await db.all<{ nip: string; noWhatsapp: string }>(sql`
+        SELECT DISTINCT u.nip, u.no_whatsapp AS noWhatsapp
+        FROM users u
+        LEFT JOIN user_roles ur ON ur.nip = u.nip
+        WHERE u.aktif = 1
+          AND u.no_whatsapp <> ''
+          AND (u.peran = 'admin_hr' OR ur.peran = 'admin_hr')
+      `);
+
+      if (requestInfo) {
+        const resultLabel =
+          status === "disetujui"
+            ? "DISETUJUI"
+            : status === "ditolak"
+              ? "DITOLAK"
+              : "DITUNDA / DIKEMBALIKAN UNTUK PERBAIKAN";
+        const message = `📋 *Keputusan Cuti oleh PYB*\n\nPengajuan: ${resultLabel}\nPegawai: ${requestInfo.namaPegawai}\nJenis cuti: ${requestInfo.jenisCuti}\nTanggal: ${requestInfo.tglMulai} s/d ${requestInfo.tglSelesai}\nDurasi: ${requestInfo.jumlahHari} hari\nNo. Surat: ${requestInfo.noSurat ?? "-"}\n\nSilakan buka SI CUTE untuk melihat rincian keputusan.`;
+        const recipients = [
+          ...(requestInfo.noWhatsappPemohon
+            ? [{ nip: requestInfo.nipPegawai, noWhatsapp: requestInfo.noWhatsappPemohon }]
+            : []),
+          ...admins,
+        ].filter(
+          (recipient, index, all) =>
+            all.findIndex((candidate) => candidate.nip === recipient.nip) === index,
+        );
+
+        await Promise.all(
+          recipients.map(async (recipient) => {
+            try {
+              const result = await sendWhatsApp({
+                to: recipient.noWhatsapp,
+                message,
+              });
+              await db.run(sql`
+                INSERT INTO whatsapp_logs
+                  (request_id, target_nip, no_whatsapp, provider, message, status, provider_message_id, created_at)
+                VALUES
+                  (${numericId}, ${recipient.nip}, ${recipient.noWhatsapp},
+                   ${result.provider}, ${message}, ${result.ok ? "sent" : "failed"},
+                   ${result.providerMessageId ?? null}, CURRENT_TIMESTAMP)
+              `);
+            } catch (whatsappError) {
+              await db.run(sql`
+                INSERT INTO whatsapp_logs
+                  (request_id, target_nip, no_whatsapp, provider, message, status, error, created_at)
+                VALUES
+                  (${numericId}, ${recipient.nip}, ${recipient.noWhatsapp},
+                   'fonnte', ${message}, 'failed',
+                   ${whatsappError instanceof Error ? whatsappError.message : "WhatsApp gagal dikirim"}, CURRENT_TIMESTAMP)
+              `);
+            }
+          }),
+        );
+      }
+    }
     return GET();
   } catch (error) {
     return NextResponse.json(

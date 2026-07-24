@@ -131,15 +131,14 @@ export async function POST(request: Request) {
       SELECT id
       FROM leave_requests
       WHERE nip = ${body.nip}
-        AND jenis_cuti = ${type}
         AND tgl_mulai <= ${body.endDate}
         AND tgl_selesai >= ${body.startDate}
-        AND status IN ('pending_admin', 'pending_atasan', 'pending_pejabat')
+        AND status IN ('pending_admin', 'pending_atasan', 'pending_pejabat', 'perbaikan', 'disetujui')
       LIMIT 1
     `);
     if (duplicateRows.length) {
       return NextResponse.json(
-        { error: "Pengajuan cuti dengan jenis dan tanggal yang sama masih dalam proses." },
+        { error: "Tanggal cuti tersebut sudah digunakan pada pengajuan cuti lain." },
         { status: 409 },
       );
     }

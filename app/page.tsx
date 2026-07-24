@@ -2534,17 +2534,17 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
         align: "center",
       });
       let x = 10;
-      pdf.setFillColor(226, 232, 240);
+      pdf.setFillColor(15, 23, 42);
+      pdf.setTextColor(255, 255, 255);
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(6.5);
       columns.forEach((column) => {
-        pdf.rect(x, 22, column.width, 7, "F");
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(column.label, x + column.width / 2, 26.5, { align: "center" });
+        pdf.rect(x, 22, column.width, 8, "F");
+        pdf.text(column.label, x + column.width / 2, 27, { align: "center" });
         x += column.width;
       });
       pdf.setTextColor(0, 0, 0);
-      return 29;
+      return 30;
     };
 
     let y = drawHeader();

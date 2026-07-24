@@ -250,11 +250,23 @@ type AdminEmployee = {
   supervisor: string;
   approver?: string;
   quotas: { year: number; remaining: number; used: number }[];
+  nonAnnualLeaves?: {
+    type: "besar" | "sakit" | "melahirkan" | "alasan_penting" | "di_luar_tanggungan_negara";
+    days: number;
+  }[];
   bknMode: string;
   whatsapp: string;
   whatsappNumber: string;
   accountPassword?: string;
 };
+
+const nonAnnualLeaveFields = [
+  { type: "besar", label: "Cuti besar" },
+  { type: "sakit", label: "Cuti sakit" },
+  { type: "melahirkan", label: "Cuti melahirkan" },
+  { type: "alasan_penting", label: "Cuti karena alasan penting" },
+  { type: "di_luar_tanggungan_negara", label: "Cuti di luar tanggungan negara" },
+] as const;
 
 type HolidayDate = {
   date: string;
@@ -5328,6 +5340,15 @@ function ActionDialog({
   const [olderRemaining, setOlderRemaining] = useState(
     String(olderQuota?.remaining ?? 0),
   );
+  const [nonAnnualLeaves, setNonAnnualLeaves] = useState(() =>
+    nonAnnualLeaveFields.map((field) => ({
+      type: field.type,
+      days: String(
+        employee?.nonAnnualLeaves?.find((leave) => leave.type === field.type)
+          ?.days ?? 0,
+      ),
+    })),
+  );
   const supervisorOptions = [
     { name: "-", nip: "-" },
     ...employees.filter(
@@ -5403,6 +5424,10 @@ function ActionDialog({
           used: Math.max(0, 12 - nextOlderRemaining),
         },
       ],
+      nonAnnualLeaves: nonAnnualLeaves.map((leave) => ({
+        type: leave.type,
+        days: clampNumber(leave.days, 0, 365),
+      })),
       bknMode: employee?.bknMode ?? "Normal",
       whatsapp: nextWhatsappNumber ? "Aktif" : "Perlu cek",
       whatsappNumber: nextWhatsappNumber,
@@ -5689,6 +5714,44 @@ function ActionDialog({
               <p className="text-xs text-muted-foreground">
                 Maksimal 6 hari dan digunakan lebih dahulu saat cuti tahunan.
               </p>
+            </div>
+            <div className="space-y-3 rounded-md border bg-muted/20 p-3 sm:col-span-2">
+              <div>
+                <p className="text-sm font-semibold">Catatan cuti non-tahunan</p>
+                <p className="text-xs text-muted-foreground">
+                  Isi jumlah hari yang tercatat untuk masing-masing jenis cuti.
+                </p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {nonAnnualLeaveFields.map((field) => {
+                  const value = nonAnnualLeaves.find(
+                    (leave) => leave.type === field.type,
+                  )?.days ?? "0";
+                  return (
+                    <div className="space-y-2" key={field.type}>
+                      <Label htmlFor={`employee-leave-${field.type}`}>
+                        {field.label}
+                      </Label>
+                      <Input
+                        id={`employee-leave-${field.type}`}
+                        type="number"
+                        min="0"
+                        max="365"
+                        value={value}
+                        onChange={(event) =>
+                          setNonAnnualLeaves((current) =>
+                            current.map((leave) =>
+                              leave.type === field.type
+                                ? { ...leave, days: event.target.value }
+                                : leave,
+                            ),
+                          )
+                        }
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : null}

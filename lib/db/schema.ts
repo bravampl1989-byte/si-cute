@@ -80,6 +80,32 @@ export const leaveQuotas = sqliteTable(
   }),
 );
 
+export const employeeNonAnnualLeaves = sqliteTable(
+  "employee_nonannual_leaves",
+  {
+    nip: text("nip")
+      .notNull()
+      .references(() => users.nip, { onDelete: "cascade" }),
+    jenisCuti: text("jenis_cuti", {
+      enum: [
+        "besar",
+        "sakit",
+        "melahirkan",
+        "alasan_penting",
+        "di_luar_tanggungan_negara",
+      ],
+    }).notNull(),
+    jumlahHari: integer("jumlah_hari").notNull().default(0),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => ({
+    nipJenisIdx: uniqueIndex("employee_nonannual_leaves_nip_jenis_idx").on(
+      table.nip,
+      table.jenisCuti,
+    ),
+  }),
+);
+
 export const leaveRequests = sqliteTable("leave_requests", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   nip: text("nip")

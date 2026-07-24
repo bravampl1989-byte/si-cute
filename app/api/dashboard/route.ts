@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { client, isDatabaseConfigured } from "@/lib/db/client";
 import { ensureRequestSignatures } from "@/lib/request-signatures";
+import { ensureEmployeeNonAnnualLeaves } from "@/lib/employee-nonannual-leaves";
 import { ensureAnnualQuotaRollover } from "@/lib/annual-rollover";
 import { ensureServicePeriodsCurrent } from "@/lib/service-periods";
 import {
@@ -78,6 +79,7 @@ export async function GET(request: Request) {
       ensureServicePeriodsCurrent(),
       ensureAnnualQuotaRollover(),
       ensureRequestSignatures(),
+      ensureEmployeeNonAnnualLeaves(),
     ]);
     if (servicePeriodsChanged) invalidateDashboardCache();
 
@@ -134,6 +136,16 @@ export async function GET(request: Request) {
       },
       {
         sql: `
+          SELECT enl.nip, enl.jenis_cuti, enl.jumlah_hari
+          FROM employee_nonannual_leaves enl
+          JOIN users u ON u.nip = enl.nip
+          WHERE u.aktif = 1 AND ${employeeScope.sql}
+          ORDER BY enl.jenis_cuti
+        `,
+        args: employeeScope.args,
+      },
+      {
+        sql: `
           SELECT r.id, r.nip, r.jenis_cuti, r.tgl_mulai, r.tgl_selesai,
                  r.jumlah_hari, r.alasan, r.alamat_cuti, r.lampiran_url, r.no_surat, r.status,
                  r.created_at, u.nama, u.no_whatsapp, u.masa_kerja_tahun, u.masa_kerja_bulan,
@@ -185,7 +197,7 @@ export async function GET(request: Request) {
         args: requestScope.args,
       },
     ], "read");
-    const [employeeRows, roleRows, quotaRows, requestRows, pybRows, signatureRows] = results.map(
+    const [employeeRows, roleRows, quotaRows, nonAnnualLeaveRows, requestRows, pybRows, signatureRows] = results.map(
       (result) => result.rows as unknown as Row[],
     );
 
@@ -219,6 +231,18 @@ export async function GET(request: Request) {
       quotasByNip.set(nip, existing);
     }
 
+    const nonAnnualLeavesByNip = new Map<
+      string,
+      { type: string; days: number }[]
+    >();
+    for (const row of nonAnnualLeaveRows) {
+      const nip = String(row.nip);
+      nonAnnualLeavesByNip.set(nip, [
+        ...(nonAnnualLeavesByNip.get(nip) ?? []),
+        { type: String(row.jenis_cuti), days: Number(row.jumlah_hari ?? 0) },
+      ]);
+    }
+
     const employees = employeeRows.map((row) => {
       const nip = String(row.nip);
       const primaryRole = roleLabels[String(row.peran)] ?? String(row.peran);
@@ -240,6 +264,7 @@ export async function GET(request: Request) {
         supervisor: String(row.atasan_nama ?? "-"),
         approver: String(row.pejabat_nama ?? "Pejabat Berwenang"),
         quotas: quotasByNip.get(nip) ?? [],
+        nonAnnualLeaves: nonAnnualLeavesByNip.get(nip) ?? [],
         bknMode: primaryRole === "PPPK" ? "Batas sesuai ketentuan" : "Normal",
         whatsapp: row.no_whatsapp ? "Aktif" : "Perlu cek",
         whatsappNumber: String(row.no_whatsapp ?? ""),

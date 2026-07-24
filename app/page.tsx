@@ -2515,19 +2515,15 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     });
     const years = [activeFiscalYear, activeFiscalYear - 1, activeFiscalYear - 2];
     const columns = [
-      { label: "No", width: 6 },
-      { label: "NIP", width: 23 },
-      { label: "Nama Pegawai", width: 35 },
-      { label: "Jabatan", width: 30 },
-      { label: "Peran", width: 20 },
-      { label: "Gol/Ruang", width: 21 },
-      { label: "Masa Kerja", width: 17 },
-      ...years.map((year) => ({ label: `Sisa ${year}`, width: 12 })),
-      { label: "Cuti Besar", width: 16 },
-      { label: "Cuti Sakit", width: 16 },
-      { label: "Cuti Melahirkan", width: 16 },
-      { label: "Cuti Alasan Penting", width: 16 },
-      { label: "Cuti di Luar Tanggungan Negara", width: 16 },
+      { label: "No", width: 8 },
+      { label: "NIP", width: 30 },
+      { label: "Nama Pegawai", width: 50 },
+      ...years.map((year) => ({ label: `Sisa ${year}`, width: 20 })),
+      { label: "Cuti Besar", width: 20 },
+      { label: "Cuti Sakit", width: 20 },
+      { label: "Cuti Melahirkan", width: 20 },
+      { label: "Cuti Alasan Penting", width: 20 },
+      { label: "Cuti di Luar Tanggungan Negara", width: 20 },
     ];
     const drawHeader = () => {
       pdf.setFont("helvetica", "bold");
@@ -2561,10 +2557,6 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
           String(index + 1),
           employee.nip,
           employee.name,
-          employee.position,
-          formatEmployeeRoles(employee),
-          hasEmployeeRole(employee, "PPPK") ? "-" : employee.grade,
-          `${employee.serviceYears} th ${employee.serviceMonths} bl`,
           ...years.map((year) => `${employee.quotas.find((quota) => quota.year === year)?.remaining ?? 0} hari`),
           ...nonAnnualLeaveFields.map(
             ({ type }) =>
@@ -2584,7 +2576,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
         pdf.setFontSize(5.5);
         columns.forEach((column, columnIndex) => {
           pdf.rect(x, y, column.width, rowHeight);
-          const center = columnIndex === 0 || columnIndex >= columns.length - years.length;
+          const center = columnIndex === 0 || columnIndex >= 3;
           pdf.text(lines[columnIndex], center ? x + column.width / 2 : x + 1, y + 4, {
             align: center ? "center" : "left",
           });

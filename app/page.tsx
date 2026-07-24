@@ -2112,24 +2112,29 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     sectionTitle("V. CATATAN CUTI", 132);
     drawCell("1. CUTI TAHUNAN", 15, 137, 70, 6, { bold: true });
     drawCell("PARAF PETUGAS CUTI", 85, 137, 20, 6, { bold: true, align: "center", fontSize: 5.8 });
-    drawCell("2. CUTI BESAR", 105, 137, 90, 6, { bold: true });
+    drawCell("2. CUTI BESAR", 105, 137, 45, 6, { bold: true });
+    drawCell("", 150, 137, 45, 6);
     drawCell("Tahun", 15, 143, 22, 6, { bold: true });
     drawCell("Sisa", 37, 143, 20, 6, { bold: true });
     drawCell("Keterangan", 57, 143, 28, 6, { bold: true });
     drawCell("", 85, 143, 20, 24);
-    drawCell("3. CUTI SAKIT", 105, 143, 90, 6, { bold: true });
+    drawCell("3. CUTI SAKIT", 105, 143, 45, 6, { bold: true });
+    drawCell("", 150, 143, 45, 6);
     drawCell(String(annualStatementRows[0]?.year ?? activeFiscalYear - 2), 15, 149, 22, 6);
     drawCell(String(annualStatementRows[0]?.remaining ?? 0), 37, 149, 20, 6);
     drawCell(annualStatementRows[0]?.note ?? "Tidak tersedia", 57, 149, 28, 6, { fontSize: 5.7 });
-    drawCell("4. CUTI MELAHIRKAN", 105, 149, 90, 6, { bold: true });
+    drawCell("4. CUTI MELAHIRKAN", 105, 149, 45, 6, { bold: true });
+    drawCell("", 150, 149, 45, 6);
     drawCell(String(annualStatementRows[1]?.year ?? activeFiscalYear - 1), 15, 155, 22, 6);
     drawCell(String(annualStatementRows[1]?.remaining ?? 0), 37, 155, 20, 6);
     drawCell(annualStatementRows[1]?.note ?? "Tidak tersedia", 57, 155, 28, 6, { fontSize: 5.7 });
-    drawCell("5. CUTI KARENA ALASAN PENTING", 105, 155, 90, 6, { bold: true, fontSize: 6.2 });
+    drawCell("5. CUTI KARENA ALASAN PENTING", 105, 155, 45, 6, { bold: true, fontSize: 6.2 });
+    drawCell("", 150, 155, 45, 6);
     drawCell(String(annualStatementRows[2]?.year ?? activeFiscalYear), 15, 161, 22, 6);
     drawCell(String(annualStatementRows[2]?.remaining ?? 0), 37, 161, 20, 6);
     drawCell(annualStatementRows[2]?.note ?? "Tidak tersedia", 57, 161, 28, 6, { fontSize: 5.7 });
-    drawCell("6. CUTI DI LUAR TANGGUNGAN NEGARA", 105, 161, 90, 6, { bold: true, fontSize: 6.2 });
+    drawCell("6. CUTI DI LUAR TANGGUNGAN NEGARA", 105, 161, 45, 6, { bold: true, fontSize: 6.2 });
+    drawCell("", 150, 161, 45, 6);
 
     sectionTitle("VI. ALAMAT SELAMA MENJALANKAN CUTI", 170);
     drawCell(request.address.toUpperCase(), 15, 175, 90, 40);
@@ -6023,7 +6028,8 @@ function DispositionSheet({
             <col className="w-[11%]" />
             <col className="w-[16%]" />
             <col className="w-[11%]" />
-            <col className="w-[50%]" />
+            <col className="w-[25%]" />
+            <col className="w-[25%]" />
           </colgroup>
           <tbody>
             <tr>
@@ -6032,7 +6038,7 @@ function DispositionSheet({
             <tr>
               <PreviewSectionTitle title="1. CUTI TAHUNAN" colSpan={3} />
               <PreviewSectionTitle title="PARAF PETUGAS CUTI" />
-              <PreviewSectionTitle title="2. CUTI BESAR" />
+              <PreviewSectionTitle title="2. CUTI BESAR" colSpan={2} />
             </tr>
             <tr>
               <PreviewLabel>Tahun</PreviewLabel>
@@ -6040,6 +6046,7 @@ function DispositionSheet({
               <PreviewLabel>Keterangan</PreviewLabel>
               <td className="border border-black" rowSpan={4} />
               <PreviewSectionTitle title="3. CUTI SAKIT" />
+              <PreviewCell />
             </tr>
             {annualStatementRows.map((quota, index) => (
               <tr key={quota.year}>
@@ -6053,6 +6060,7 @@ function DispositionSheet({
                     "6. CUTI DI LUAR TANGGUNGAN NEGARA",
                   ][index] ?? ""}
                 />
+                <PreviewCell />
               </tr>
             ))}
           </tbody>
@@ -6367,7 +6375,7 @@ function PppkDispositionSheet({
           </colgroup>
           <tbody>
             <tr>
-              <PreviewSectionTitle title="V. CATATAN CUTI" colSpan={5} />
+              <PreviewSectionTitle title="V. CATATAN CUTI" colSpan={6} />
             </tr>
             <tr>
               <PreviewSectionTitle title="1. CUTI TAHUNAN" rowSpan={4} />

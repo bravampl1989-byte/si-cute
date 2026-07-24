@@ -2214,9 +2214,6 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     drawCell("", 105, 277, 90, 19);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(5.3);
-    pdf.text("Pejabat yang berwenang memberikan cuti,", 150, 280, {
-      align: "center",
-    });
     if (hasApproverSignature) {
       if (approverMark) {
         pdf.addImage(approverMark, "PNG", 137, 283, 26, 7);
@@ -6213,7 +6210,6 @@ function DispositionSheet({
             <tr>
               <td className="h-28 border border-black" colSpan={2} />
               <td className="border border-black p-2 text-center align-top" colSpan={2}>
-                <p>Pejabat yang berwenang memberikan cuti,</p>
                 {hasApproverSignature ? (
                   <>
                     <div className="my-2 flex justify-center">
@@ -6519,7 +6515,6 @@ function PppkDispositionSheet({
               <td className="border border-black p-2 text-center align-top" colSpan={2}>
                 {hasApproverSignature ? (
                   <>
-                    <p>Pejabat yang berwenang memberikan cuti,</p>
                     <div className="my-2 flex justify-center">
                       <QrVerificationMark
                         signature={request.approverSignature}
@@ -6536,7 +6531,6 @@ function PppkDispositionSheet({
                   </>
                 ) : (
                   <div className="mt-6">
-                    <p>Pejabat yang berwenang memberikan cuti,</p>
                     <p className="mt-6 font-bold">DRAFT</p>
                     <p className="text-[10px]">
                       Menunggu keputusan pejabat berwenang

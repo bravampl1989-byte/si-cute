@@ -1379,6 +1379,16 @@ function HomeContent() {
       })
     : "--.--.--";
   const waTemplateRequest = selected ?? requests[0];
+  const waTemplateEmployee = adminEmployees.find(
+    (employee) => employee.nip === waTemplateRequest.nip,
+  );
+  const waTemplateNonAnnualType = getNonAnnualLeaveType(waTemplateRequest.type);
+  const waTemplateTotalLine = waTemplateNonAnnualType
+    ? `\nTotal ${waTemplateRequest.type}: ${getNonAnnualLeaveTotal(
+        waTemplateEmployee,
+        waTemplateNonAnnualType,
+      )} hari`
+    : "";
   const waLeaveRequestTemplate = `Yth. ${waTemplateRequest.reviewer},
 
 Ada pengajuan cuti baru yang perlu ditelaah:
@@ -1388,7 +1398,7 @@ Pegawai: ${waTemplateRequest.employee}
 NIP: ${waTemplateRequest.nip}
 Jenis Cuti: ${waTemplateRequest.type}
 Tanggal: ${waTemplateRequest.start} s.d. ${waTemplateRequest.end}
-Lama Cuti: ${waTemplateRequest.days} hari kerja
+Lama Cuti: ${waTemplateRequest.days} hari kerja${waTemplateTotalLine}
 Alasan: ${waTemplateRequest.reason}
 
 Silakan buka aplikasi SI CUTE untuk memberikan keputusan Setujui, Tunda atau Tolak.

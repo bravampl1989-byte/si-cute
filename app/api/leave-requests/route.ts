@@ -19,6 +19,15 @@ const leaveTypeValues: Record<string, string> = {
   "Cuti Di Luar Tanggungan Negara": "di_luar_tanggungan_negara",
 };
 
+const leaveTypeLabels: Record<string, string> = {
+  tahunan: "Cuti Tahunan",
+  besar: "Cuti Besar",
+  sakit: "Cuti Sakit",
+  melahirkan: "Cuti Melahirkan",
+  alasan_penting: "Cuti Alasan Penting",
+  di_luar_tanggungan_negara: "Cuti Di Luar Tanggungan Negara",
+};
+
 const statusValues: Record<string, string> = {
   "Pending Admin": "pending_admin",
   "Pending Atasan": "pending_atasan",
@@ -343,12 +352,13 @@ export async function PATCH(request: Request) {
         tglMulai: string;
         tglSelesai: string;
         jumlahHari: number;
+        nipPegawai: string;
         atasanNip: string | null;
         noWhatsappAtasan: string | null;
       }>(sql`
         SELECT u.nama AS namaPegawai, r.jenis_cuti AS jenisCuti,
                r.tgl_mulai AS tglMulai, r.tgl_selesai AS tglSelesai,
-               r.jumlah_hari AS jumlahHari, a.nip AS atasanNip,
+               r.jumlah_hari AS jumlahHari, r.nip AS nipPegawai, a.nip AS atasanNip,
                a.no_whatsapp AS noWhatsappAtasan
         FROM leave_requests r
         JOIN users u ON u.nip = r.nip
@@ -357,7 +367,28 @@ export async function PATCH(request: Request) {
       `);
       const recipient = recipients[0];
       if (recipient?.noWhatsappAtasan && recipient.atasanNip) {
-        const message = `📋 *Pengajuan Cuti Menunggu Persetujuan Atasan*\n\nPegawai: ${recipient.namaPegawai}\nJenis cuti: ${recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari\nNo. Surat: ${body.noSurat}\n\nPengajuan telah diverifikasi Admin. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("atasan", recipient.atasanNip)}`;
+        const totalRows = recipient.jenisCuti === "tahunan"
+          ? []
+          : await db.all<{ total: number }>(sql`
+              SELECT
+                COALESCE((
+                  SELECT jumlah_hari
+                  FROM employee_nonannual_leaves
+                  WHERE nip = ${recipient.nipPegawai}
+                    AND jenis_cuti = ${recipient.jenisCuti}
+                ), 0) +
+                COALESCE((
+                  SELECT SUM(jumlah_hari)
+                  FROM leave_requests
+                  WHERE nip = ${recipient.nipPegawai}
+                    AND jenis_cuti = ${recipient.jenisCuti}
+                    AND status <> 'ditolak'
+                ), 0) AS total
+            `);
+        const totalLine = recipient.jenisCuti === "tahunan"
+          ? ""
+          : `\nTotal ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}: ${Number(totalRows[0]?.total ?? 0)} hari`;
+        const message = `📋 *Pengajuan Cuti Menunggu Persetujuan Atasan*\n\nPegawai: ${recipient.namaPegawai}\nJenis cuti: ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari${totalLine}\nNo. Surat: ${body.noSurat}\n\nPengajuan telah diverifikasi Admin. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("atasan", recipient.atasanNip)}`;
         try {
           const result = await sendWhatsApp({
             to: recipient.noWhatsappAtasan,

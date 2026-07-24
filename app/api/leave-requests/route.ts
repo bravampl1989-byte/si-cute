@@ -112,6 +112,21 @@ export async function POST(request: Request) {
       );
     }
 
+    const recentRows = await db.all<{ id: number }>(sql`
+      SELECT id
+      FROM leave_requests
+      WHERE nip = ${body.nip}
+        AND created_at >= datetime('now', '-1 minute')
+      ORDER BY id DESC
+      LIMIT 1
+    `);
+    if (recentRows.length) {
+      return NextResponse.json(
+        { error: "Pengajuan baru saja dikirim. Tunggu satu menit sebelum mengirim lagi." },
+        { status: 429 },
+      );
+    }
+
     const duplicateRows = await db.all<{ id: number }>(sql`
       SELECT id
       FROM leave_requests

@@ -269,6 +269,23 @@ const nonAnnualLeaveFields = [
   { type: "di_luar_tanggungan_negara", label: "Cuti di luar tanggungan negara" },
 ] as const;
 
+const requestTypeByNonAnnualLeave: Record<
+  (typeof nonAnnualLeaveFields)[number]["type"],
+  string
+> = {
+  besar: "Cuti Besar",
+  sakit: "Cuti Sakit",
+  melahirkan: "Cuti Melahirkan",
+  alasan_penting: "Cuti Alasan Penting",
+  di_luar_tanggungan_negara: "Cuti Di Luar Tanggungan Negara",
+};
+
+function getNonAnnualLeaveType(requestType: string) {
+  return (Object.entries(requestTypeByNonAnnualLeave).find(
+    ([, label]) => label === requestType,
+  )?.[0] ?? null) as (typeof nonAnnualLeaveFields)[number]["type"] | null;
+}
+
 function getNonAnnualLeaveTotal(
   employee: AdminEmployee | undefined,
   type: (typeof nonAnnualLeaveFields)[number]["type"],
@@ -289,17 +306,7 @@ function formatCurrentNonAnnualLeaveTotal(
   request: LeaveRequest,
   type: (typeof nonAnnualLeaveFields)[number]["type"],
 ) {
-  const requestTypeByLeave: Record<
-    (typeof nonAnnualLeaveFields)[number]["type"],
-    string
-  > = {
-    besar: "Cuti Besar",
-    sakit: "Cuti Sakit",
-    melahirkan: "Cuti Melahirkan",
-    alasan_penting: "Cuti Alasan Penting",
-    di_luar_tanggungan_negara: "Cuti Di Luar Tanggungan Negara",
-  };
-  return request.type === requestTypeByLeave[type]
+  return request.type === requestTypeByNonAnnualLeave[type]
     ? formatNonAnnualLeaveTotal(employee, type)
     : "";
 }
@@ -1416,7 +1423,31 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       }
 
       setRequests(result.requests);
-      await loadAdminEmployees();
+      const submittedNonAnnualType = getNonAnnualLeaveType(leaveType);
+      if (submittedNonAnnualType) {
+        setAdminEmployees((current) =>
+          current.map((employee) => {
+            if (employee.nip !== applicantNip) return employee;
+            const leaves = employee.nonAnnualLeaves ?? [];
+            const hasType = leaves.some(
+              (leave) => leave.type === submittedNonAnnualType,
+            );
+            return {
+              ...employee,
+              nonAnnualLeaves: hasType
+                ? leaves.map((leave) =>
+                    leave.type === submittedNonAnnualType
+                      ? { ...leave, days: leave.days + newRequestDays }
+                      : leave,
+                  )
+                : [
+                    ...leaves,
+                    { type: submittedNonAnnualType, days: newRequestDays },
+                  ],
+            };
+          }),
+        );
+      }
       setSelectedId(result.requests[0]?.id ?? "");
       setSupportingDocument(null);
       setActiveTab("approval");

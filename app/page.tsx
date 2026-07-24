@@ -681,6 +681,7 @@ function HomeContent() {
   const [holidayDates, setHolidayDates] = useState<HolidayDate[]>([]);
   const [holidayMonth, setHolidayMonth] = useState("Semua Bulan");
   const [isSavingHoliday, setIsSavingHoliday] = useState(false);
+  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [isLoadingEmployees, setIsLoadingEmployees] = useState(true);
   const [manualSignatures, setManualSignatures] = useState<Record<string, string>>(
@@ -1407,6 +1408,7 @@ Link: https://sicute.pa-sampang.go.id/login
 Pesan ini dikirim otomatis oleh SI CUTE.`;
 
   async function submitRequest() {
+    if (isSubmittingRequest) return;
     if (leaveType === "Cuti Tahunan" && annualEffectiveLeft <= 0) {
       showToast("Sisa cuti tahunan sudah habis. Pengajuan tidak dapat dikirim.");
       return;
@@ -1429,6 +1431,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       showToast("Tanda tangan pemohon wajib diisi sebelum pengajuan dikirim.");
       return;
     }
+    setIsSubmittingRequest(true);
     try {
       const attachment = supportingDocument
         ? await readSupportingAttachment(supportingDocument)
@@ -1495,6 +1498,8 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       showToast(
         error instanceof Error ? error.message : "Pengajuan belum bisa dikirim.",
       );
+    } finally {
+      setIsSubmittingRequest(false);
     }
   }
 
@@ -3148,11 +3153,11 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                 </div>
                 <Button
                   className="w-full shadow-sm shadow-primary/20 sm:w-auto"
-                  disabled={annualRequestUnavailable}
+                  disabled={annualRequestUnavailable || isSubmittingRequest}
                   onClick={submitRequest}
                 >
                   <Send />
-                  Kirim
+                  {isSubmittingRequest ? "Mengirim..." : "Kirim"}
                 </Button>
               </div>
             </CardContent>

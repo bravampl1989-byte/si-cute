@@ -112,6 +112,23 @@ export async function POST(request: Request) {
       );
     }
 
+    const duplicateRows = await db.all<{ id: number }>(sql`
+      SELECT id
+      FROM leave_requests
+      WHERE nip = ${body.nip}
+        AND jenis_cuti = ${type}
+        AND tgl_mulai <= ${body.endDate}
+        AND tgl_selesai >= ${body.startDate}
+        AND status IN ('pending_admin', 'pending_atasan', 'pending_pejabat')
+      LIMIT 1
+    `);
+    if (duplicateRows.length) {
+      return NextResponse.json(
+        { error: "Pengajuan cuti dengan jenis dan tanggal yang sama masih dalam proses." },
+        { status: 409 },
+      );
+    }
+
     if (type === "tahunan") {
       const quotaRows = await db.all<{ remaining: number }>(sql`
         SELECT COALESCE(SUM(sisa_kuota), 0) AS remaining

@@ -94,6 +94,37 @@ export async function POST(request: Request) {
       );
     }
 
+    if (type === "tahunan") {
+      const quotaRows = await db.all<{ remaining: number }>(sql`
+        SELECT COALESCE(SUM(sisa_kuota), 0) AS remaining
+        FROM leave_quotas
+        WHERE nip = ${body.nip} AND sisa_kuota > 0
+      `);
+      const pendingRows = await db.all<{ reserved: number }>(sql`
+        SELECT COALESCE(SUM(jumlah_hari), 0) AS reserved
+        FROM leave_requests
+        WHERE nip = ${body.nip}
+          AND jenis_cuti = 'tahunan'
+          AND status IN ('pending_admin', 'pending_atasan', 'pending_pejabat')
+      `);
+      const availableDays =
+        Number(quotaRows[0]?.remaining ?? 0) -
+        Number(pendingRows[0]?.reserved ?? 0);
+
+      if (availableDays <= 0) {
+        return NextResponse.json(
+          { error: "Sisa cuti tahunan sudah habis. Pengajuan tidak dapat dikirim." },
+          { status: 400 },
+        );
+      }
+      if (workingDays > availableDays) {
+        return NextResponse.json(
+          { error: `Sisa cuti tahunan hanya ${availableDays} hari.` },
+          { status: 400 },
+        );
+      }
+    }
+
     await ensureRequestSignatures();
     const createdRequest = await db.run(sql`
       INSERT INTO leave_requests

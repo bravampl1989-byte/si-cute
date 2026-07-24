@@ -1127,6 +1127,10 @@ function HomeContent() {
     (employee) => employee.nip === selected.nip,
   );
   const selectedNonAnnualLeaveType = getNonAnnualLeaveType(selected.type);
+  const selectedAnnualLeaveLeft =
+    selectedEmployee?.quotas
+      .filter((quota) => quota.year >= activeFiscalYear - 2)
+      .reduce((total, quota) => total + quota.remaining, 0) ?? 0;
   const selectedLeaveTotal = selectedNonAnnualLeaveType
     ? `${selected.type}: ${getNonAnnualLeaveTotal(
         selectedEmployee,
@@ -1353,6 +1357,9 @@ function HomeContent() {
     return holiday.date.slice(5, 7) === month;
   });
   const requiresSupportingDocument = leaveType !== "Cuti Tahunan";
+  const annualRequestUnavailable =
+    leaveType === "Cuti Tahunan" &&
+    (annualEffectiveLeft <= 0 || newRequestDays > annualEffectiveLeft);
   const currentDateText = currentTime
     ? currentTime.toLocaleDateString("id-ID", {
         weekday: "long",
@@ -1390,6 +1397,14 @@ Link: https://sicute.pa-sampang.go.id/login
 Pesan ini dikirim otomatis oleh SI CUTE.`;
 
   async function submitRequest() {
+    if (leaveType === "Cuti Tahunan" && annualEffectiveLeft <= 0) {
+      showToast("Sisa cuti tahunan sudah habis. Pengajuan tidak dapat dikirim.");
+      return;
+    }
+    if (leaveType === "Cuti Tahunan" && newRequestDays > annualEffectiveLeft) {
+      showToast(`Sisa cuti tahunan hanya ${annualEffectiveLeft} hari.`);
+      return;
+    }
     if (requiresSupportingDocument && !supportingDocument) {
       showToast(`Dokumen pendukung wajib untuk ${leaveType}.`);
       return;
@@ -3115,8 +3130,17 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                   <p className="text-sm text-muted-foreground">
                     Sabtu, Minggu, dan tanggal libur dari admin tidak dihitung.
                   </p>
+                  {leaveType === "Cuti Tahunan" ? (
+                    <p className="mt-1 text-sm font-medium text-primary">
+                      Sisa cuti tahunan: {annualEffectiveLeft} hari
+                    </p>
+                  ) : null}
                 </div>
-                <Button className="w-full shadow-sm shadow-primary/20 sm:w-auto" onClick={submitRequest}>
+                <Button
+                  className="w-full shadow-sm shadow-primary/20 sm:w-auto"
+                  disabled={annualRequestUnavailable}
+                  onClick={submitRequest}
+                >
                   <Send />
                   Kirim
                 </Button>
@@ -3332,6 +3356,12 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                     <Detail label="Alamat" value={selected.address} />
                     {selectedNonAnnualLeaveType ? (
                       <Detail label="Total cuti" value={selectedLeaveTotal} />
+                    ) : null}
+                    {selected.type === "Cuti Tahunan" ? (
+                      <Detail
+                        label="Sisa cuti tahunan"
+                        value={`${selectedAnnualLeaveLeft} hari`}
+                      />
                     ) : null}
                     <Detail label="Alasan" value={selected.reason} wide />
                   </div>

@@ -230,11 +230,11 @@ export async function POST(request: Request) {
           });
           await db.run(sql`
             INSERT INTO whatsapp_logs
-              (request_id, target_nip, no_whatsapp, provider, message, status, provider_message_id, created_at)
+              (request_id, target_nip, no_whatsapp, provider, message, status, provider_message_id, error, created_at)
             VALUES
               (${requestId}, ${admin.nip}, ${admin.noWhatsapp},
                ${result.provider}, ${message}, ${result.ok ? "sent" : "failed"},
-               ${result.providerMessageId ?? null}, CURRENT_TIMESTAMP)
+               ${result.providerMessageId ?? null}, ${result.error ?? null}, CURRENT_TIMESTAMP)
           `);
         } catch (whatsappError) {
           await db.run(sql`
@@ -455,11 +455,11 @@ export async function PATCH(request: Request) {
           });
           await db.run(sql`
             INSERT INTO whatsapp_logs
-              (request_id, target_nip, no_whatsapp, provider, message, status, provider_message_id, created_at)
+              (request_id, target_nip, no_whatsapp, provider, message, status, provider_message_id, error, created_at)
             VALUES
               (${numericId}, ${recipient.atasanNip}, ${recipient.noWhatsappAtasan},
                ${result.provider}, ${message}, ${result.ok ? "sent" : "failed"},
-               ${result.providerMessageId ?? null}, CURRENT_TIMESTAMP)
+               ${result.providerMessageId ?? null}, ${result.error ?? null}, CURRENT_TIMESTAMP)
           `);
         } catch (whatsappError) {
           await db.run(sql`
@@ -516,11 +516,11 @@ export async function PATCH(request: Request) {
           });
           await db.run(sql`
             INSERT INTO whatsapp_logs
-              (request_id, target_nip, no_whatsapp, provider, message, status, provider_message_id, created_at)
+              (request_id, target_nip, no_whatsapp, provider, message, status, provider_message_id, error, created_at)
             VALUES
               (${numericId}, ${recipient.pybNip}, ${recipient.noWhatsappPyb},
                ${result.provider}, ${message}, ${result.ok ? "sent" : "failed"},
-               ${result.providerMessageId ?? null}, CURRENT_TIMESTAMP)
+               ${result.providerMessageId ?? null}, ${result.error ?? null}, CURRENT_TIMESTAMP)
           `);
         } catch (whatsappError) {
           await db.run(sql`
@@ -594,11 +594,11 @@ export async function PATCH(request: Request) {
               });
               await db.run(sql`
                 INSERT INTO whatsapp_logs
-                  (request_id, target_nip, no_whatsapp, provider, message, status, provider_message_id, created_at)
+                  (request_id, target_nip, no_whatsapp, provider, message, status, provider_message_id, error, created_at)
                 VALUES
                   (${numericId}, ${recipient.nip}, ${recipient.noWhatsapp},
                    ${result.provider}, ${message}, ${result.ok ? "sent" : "failed"},
-                   ${result.providerMessageId ?? null}, CURRENT_TIMESTAMP)
+                   ${result.providerMessageId ?? null}, ${result.error ?? null}, CURRENT_TIMESTAMP)
               `);
             } catch (whatsappError) {
               await db.run(sql`

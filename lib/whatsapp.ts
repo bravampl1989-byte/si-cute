@@ -9,6 +9,7 @@ type SendWhatsAppResult = {
   provider: string;
   ok: boolean;
   providerMessageId?: string;
+  error?: string;
   raw: unknown;
 };
 
@@ -39,7 +40,7 @@ async function sendViaFonnte({
   }
 
   const body = new URLSearchParams({
-    target: to,
+    target: normalizeWhatsAppTarget(to),
     message,
   });
 
@@ -51,11 +52,16 @@ async function sendViaFonnte({
     body,
   });
   const raw = await response.json().catch(() => null);
+  const providerAccepted = isProviderAccepted(raw);
 
   return {
     provider: "fonnte",
-    ok: response.ok,
+    ok: response.ok && providerAccepted,
     providerMessageId: extractString(raw, "id"),
+    error:
+      response.ok && providerAccepted
+        ? undefined
+        : extractProviderError(raw) ?? `Fonnte menolak pengiriman (HTTP ${response.status}).`,
     raw,
   };
 }
@@ -80,7 +86,7 @@ async function sendViaWablas({
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      phone: to,
+      phone: normalizeWhatsAppTarget(to),
       message,
     }),
   });
@@ -101,4 +107,35 @@ function extractString(value: unknown, key: string) {
 
   const record = value as Record<string, unknown>;
   return typeof record[key] === "string" ? record[key] : undefined;
+}
+
+function normalizeWhatsAppTarget(value: string) {
+  const digits = value.replace(/\D/g, "");
+  if (digits.startsWith("0")) return `62${digits.slice(1)}`;
+  if (digits.startsWith("8")) return `62${digits}`;
+  return digits;
+}
+
+function isProviderAccepted(raw: unknown) {
+  if (typeof raw !== "object" || raw === null || !("status" in raw)) {
+    return true;
+  }
+  const status = (raw as Record<string, unknown>).status;
+  if (typeof status === "boolean") return status;
+  if (typeof status === "number") return status === 1 || status === 200;
+  if (typeof status === "string") {
+    return ["true", "1", "ok", "success"].includes(status.toLowerCase());
+  }
+  return true;
+}
+
+function extractProviderError(raw: unknown) {
+  if (typeof raw !== "object" || raw === null) return undefined;
+  const record = raw as Record<string, unknown>;
+  for (const key of ["reason", "message", "detail", "error"]) {
+    if (typeof record[key] === "string" && record[key].trim()) {
+      return record[key];
+    }
+  }
+  return undefined;
 }

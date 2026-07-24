@@ -901,14 +901,21 @@ function HomeContent() {
       const response = await fetch("/api/leave-requests");
       const result = (await response.json()) as {
         requests?: LeaveRequest[];
+        employees?: AdminEmployee[];
         error?: string;
       };
 
-      if (!response.ok || !result.requests) {
+      if (!response.ok || !result.requests || !result.employees) {
         throw new Error(result.error ?? "Data pengajuan belum bisa dimuat.");
       }
 
       setRequests(result.requests);
+      setAdminEmployees(
+        advanceServicePeriods(
+          ensureAnnualQuotaYear(result.employees, activeFiscalYear),
+          getJakartaYearMonth(),
+        ),
+      );
       setSelectedId((current) => current || result.requests?.[0]?.id || "");
     } catch (error) {
       showToast(
@@ -1528,39 +1535,21 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       });
       const result = (await response.json()) as {
         requests?: LeaveRequest[];
+        employees?: AdminEmployee[];
         error?: string;
       };
 
-      if (!response.ok || !result.requests) {
+      if (!response.ok || !result.requests || !result.employees) {
         throw new Error(result.error ?? "Pengajuan belum bisa dikirim.");
       }
 
       setRequests(result.requests);
-      const submittedNonAnnualType = getNonAnnualLeaveType(leaveType);
-      if (submittedNonAnnualType) {
-        setAdminEmployees((current) =>
-          current.map((employee) => {
-            if (employee.nip !== applicantNip) return employee;
-            const leaves = employee.nonAnnualLeaves ?? [];
-            const hasType = leaves.some(
-              (leave) => leave.type === submittedNonAnnualType,
-            );
-            return {
-              ...employee,
-              nonAnnualLeaves: hasType
-                ? leaves.map((leave) =>
-                    leave.type === submittedNonAnnualType
-                      ? { ...leave, days: leave.days + newRequestDays }
-                      : leave,
-                  )
-                : [
-                    ...leaves,
-                    { type: submittedNonAnnualType, days: newRequestDays },
-                  ],
-            };
-          }),
-        );
-      }
+      setAdminEmployees(
+        advanceServicePeriods(
+          ensureAnnualQuotaYear(result.employees, activeFiscalYear),
+          getJakartaYearMonth(),
+        ),
+      );
       setSelectedId(result.requests[0]?.id ?? "");
       setSupportingDocument(null);
       setActiveTab("approval");
@@ -1657,14 +1646,21 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       });
       const result = (await response.json()) as {
         requests?: LeaveRequest[];
+        employees?: AdminEmployee[];
         error?: string;
       };
 
-      if (!response.ok || !result.requests) {
+      if (!response.ok || !result.requests || !result.employees) {
         throw new Error(result.error ?? "Keputusan belum bisa disimpan.");
       }
 
       setRequests(result.requests);
+      setAdminEmployees(
+        advanceServicePeriods(
+          ensureAnnualQuotaYear(result.employees, activeFiscalYear),
+          getJakartaYearMonth(),
+        ),
+      );
       const nextVisible = result.requests.filter((request) => {
         const belongsToRole =
           viewRole === "atasan"
@@ -1727,9 +1723,18 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       const refreshed = await fetch("/api/leave-requests");
       const data = (await refreshed.json()) as {
         requests?: LeaveRequest[];
+        employees?: AdminEmployee[];
       };
       if (data.requests) {
         setRequests(data.requests);
+        if (data.employees) {
+          setAdminEmployees(
+            advanceServicePeriods(
+              ensureAnnualQuotaYear(data.employees, activeFiscalYear),
+              getJakartaYearMonth(),
+            ),
+          );
+        }
         setSelectedId(
           (current) => data.requests?.[0]?.id ?? current,
         );
@@ -1766,14 +1771,21 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       );
       const result = (await response.json()) as {
         requests?: LeaveRequest[];
+        employees?: AdminEmployee[];
         error?: string;
       };
 
-      if (!response.ok || !result.requests) {
+      if (!response.ok || !result.requests || !result.employees) {
         throw new Error(result.error ?? "Riwayat cuti belum bisa dihapus.");
       }
 
       setRequests(result.requests);
+      setAdminEmployees(
+        advanceServicePeriods(
+          ensureAnnualQuotaYear(result.employees, activeFiscalYear),
+          getJakartaYearMonth(),
+        ),
+      );
       setSelectedId((current) =>
         current === request.id ? result.requests?.[0]?.id ?? "" : current,
       );

@@ -58,10 +58,11 @@ export async function GET() {
   );
   const data = (await response.json()) as {
     requests?: Array<Record<string, unknown>>;
+    employees?: Array<Record<string, unknown>>;
     error?: string;
   };
 
-  if (!response.ok || !data.requests) {
+  if (!response.ok || !data.requests || !data.employees) {
     return NextResponse.json(
       { error: data.error ?? "Data pengajuan belum bisa dimuat." },
       { status: response.status || 500 },
@@ -73,7 +74,11 @@ export async function GET() {
     dbId: request.databaseId,
   }));
 
-  return NextResponse.json({ requests, source: "turso-live" });
+  return NextResponse.json({
+    requests,
+    employees: data.employees,
+    source: "turso-live",
+  });
 }
 
 export async function POST(request: Request) {

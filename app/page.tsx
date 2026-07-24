@@ -124,6 +124,10 @@ const leaveTypes = [
 
 const pppkLeaveTypes = ["Cuti Tahunan", "Cuti Sakit", "Cuti Melahirkan"];
 const maxSupportingDocumentSize = 3 * 1024 * 1024;
+// Keep photos comfortably below the 3 MB attachment limit. The additional
+// margin also accounts for the larger base64 payload sent to the API.
+const targetCompressedImageSize = Math.floor(2.5 * 1024 * 1024);
+const maxCompressedImageDimension = 1920;
 const employeeRowsPerPage = 10;
 const historyRowsPerPage = 10;
 const approvalRowsPerPage = 10;
@@ -203,6 +207,52 @@ function readSupportingAttachment(file: File) {
     };
     reader.readAsDataURL(file);
   });
+}
+
+async function compressSupportingImage(file: File) {
+  if (!file.type.startsWith("image/") || file.size <= targetCompressedImageSize) {
+    return file;
+  }
+
+  const sourceUrl = URL.createObjectURL(file);
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const element = new Image();
+      element.onload = () => resolve(element);
+      element.onerror = () => reject(new Error("Foto dokumen tidak dapat diproses."));
+      element.src = sourceUrl;
+    });
+
+    const scale = Math.min(
+      1,
+      maxCompressedImageDimension / Math.max(image.naturalWidth, image.naturalHeight),
+    );
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Foto dokumen tidak dapat dikompresi.");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+    let quality = 0.86;
+    let blob: Blob | null = null;
+    while (quality >= 0.45) {
+      blob = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", quality),
+      );
+      if (blob && blob.size <= targetCompressedImageSize) break;
+      quality -= 0.1;
+    }
+    if (!blob) throw new Error("Foto dokumen tidak dapat dikompresi.");
+
+    const compressedName = `${file.name.replace(/\.[^.]+$/, "") || "dokumen"}.jpg`;
+    return new File([blob], compressedName, {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  } finally {
+    URL.revokeObjectURL(sourceUrl);
+  }
 }
 
 function downloadAttachment(request: LeaveRequest) {
@@ -636,6 +686,8 @@ function HomeContent() {
   const [supportingDocument, setSupportingDocument] = useState<File | null>(
     null,
   );
+  const [isCompressingSupportingDocument, setIsCompressingSupportingDocument] =
+    useState(false);
   const [selectedId, setSelectedId] = useState("");
   const [approvalNoSurat, setApprovalNoSurat] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -1407,8 +1459,32 @@ Link: https://sicute.pa-sampang.go.id/login
 
 Pesan ini dikirim otomatis oleh SI CUTE.`;
 
+  async function handleSupportingDocumentChange(file: File | null) {
+    if (!file) {
+      setSupportingDocument(null);
+      return;
+    }
+
+    setIsCompressingSupportingDocument(true);
+    try {
+      const processedFile = await compressSupportingImage(file);
+      if (processedFile.size > maxSupportingDocumentSize) {
+        throw new Error("Foto masih terlalu besar setelah dikompresi. Gunakan foto yang lebih dekat atau PDF di bawah 3 MB.");
+      }
+      setSupportingDocument(processedFile);
+      if (processedFile !== file) {
+        showToast(`Foto dikompresi menjadi ${(processedFile.size / 1024 / 1024).toFixed(1)} MB.`);
+      }
+    } catch (error) {
+      setSupportingDocument(null);
+      showToast(error instanceof Error ? error.message : "Foto dokumen gagal dikompresi.");
+    } finally {
+      setIsCompressingSupportingDocument(false);
+    }
+  }
+
   async function submitRequest() {
-    if (isSubmittingRequest) return;
+    if (isSubmittingRequest || isCompressingSupportingDocument) return;
     if (leaveType === "Cuti Tahunan" && annualEffectiveLeft <= 0) {
       showToast("Sisa cuti tahunan sudah habis. Pengajuan tidak dapat dikirim.");
       return;
@@ -3076,15 +3152,23 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                     type="file"
                     accept="image/*,.pdf"
                     capture="environment"
-                    onChange={(event) =>
-                      setSupportingDocument(event.target.files?.[0] ?? null)
-                    }
+                    disabled={isCompressingSupportingDocument}
+                    onChange={(event) => {
+                      void handleSupportingDocumentChange(
+                        event.target.files?.[0] ?? null,
+                      );
+                    }}
                   />
-                  <p className="text-xs leading-5 text-muted-foreground">
+                  <p className="text-xs leading-5 text-muted-foreground">                     
                     {requiresSupportingDocument
-                      ? "Ambil foto lewat kamera HP atau unggah PDF/gambar dokumen pendukung."
-                      : "Opsional. Anda dapat mengambil foto dengan kamera HP atau memilih PDF/gambar."}
+                      ? "Foto dari kamera akan dikompresi otomatis di bawah 3 MB. PDF maksimal 3 MB."
+                      : "Opsional. Foto kamera dikompresi otomatis di bawah 3 MB; PDF maksimal 3 MB."}
                   </p>
+                  {isCompressingSupportingDocument ? (
+                    <p className="text-xs font-medium text-primary">
+                      Mengompresi foto dokumen…
+                    </p>
+                  ) : null}
                   {supportingDocument ? (
                     <p className="text-xs font-medium text-foreground">
                       Lampiran dipilih: {supportingDocument.name}

@@ -1123,6 +1123,16 @@ function HomeContent() {
     (request) => request.status === "Pending Pejabat",
   ).length;
   const latestDashboardRequest = dashboardRequests[0];
+  const selectedEmployee = adminEmployees.find(
+    (employee) => employee.nip === selected.nip,
+  );
+  const selectedNonAnnualLeaveType = getNonAnnualLeaveType(selected.type);
+  const selectedLeaveTotal = selectedNonAnnualLeaveType
+    ? `${selected.type}: ${getNonAnnualLeaveTotal(
+        selectedEmployee,
+        selectedNonAnnualLeaveType,
+      )} hari`
+    : "-";
   const roleLabel = viewRoleLabels[viewRole];
   const accountSwitchRoles = getEmployeeViewRoles(accountEmployee);
   const dashboardTitle =
@@ -3320,6 +3330,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                     <Detail label="Tanggal" value={`${selected.start} - ${selected.end}`} />
                     <Detail label="Durasi" value={`${selected.days} hari`} />
                     <Detail label="Alamat" value={selected.address} />
+                    {selectedNonAnnualLeaveType ? (
+                      <Detail label="Total cuti" value={selectedLeaveTotal} />
+                    ) : null}
                     <Detail label="Alasan" value={selected.reason} wide />
                   </div>
 

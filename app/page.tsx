@@ -2019,7 +2019,6 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       drawCell("", 15, 255, 80, 21);
       drawCell("", 95, 255, 100, 21);
       pdf.setFontSize(5.4);
-      pdf.text("Pejabat yang memberi pertimbangan,", 145, 259, { align: "center" });
       if (hasReviewerSignature) {
         if (reviewerMark) {
           pdf.addImage(reviewerMark, "PNG", 132, 262, 26, 7);
@@ -2175,7 +2174,6 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
 
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(5.6);
-    pdf.text("Pejabat yang memberi pertimbangan,", 150, 239, { align: "center" });
     if (hasReviewerSignature) {
       if (reviewerMark) {
         pdf.addImage(reviewerMark, "PNG", 137, 242, 26, 8);
@@ -6143,7 +6141,6 @@ function DispositionSheet({
             <tr>
               <td className="h-28 border border-black" colSpan={2} />
               <td className="border border-black p-2 text-center align-top" colSpan={2}>
-                <p>Pejabat yang memberi pertimbangan,</p>
                 {hasReviewerSignature ? (
                   <>
                     <div className="my-2 flex justify-center">
@@ -6466,7 +6463,6 @@ function PppkDispositionSheet({
               <td className="border border-black p-2 text-center align-top" colSpan={2}>
                 {hasReviewerSignature ? (
                   <>
-                    <p>Pejabat yang memberi pertimbangan,</p>
                     <div className="my-2 flex justify-center">
                       <QrVerificationMark
                         signature={request.reviewerSignature}
@@ -6483,7 +6479,6 @@ function PppkDispositionSheet({
                   </>
                 ) : (
                   <div className="mt-6">
-                    <p>Pejabat yang memberi pertimbangan,</p>
                     <p className="mt-6 font-bold">DRAFT</p>
                     <p className="text-[10px]">
                       Menunggu tanda tangan atasan langsung

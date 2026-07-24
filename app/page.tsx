@@ -284,6 +284,26 @@ function formatNonAnnualLeaveTotal(
   return total > 0 ? String(total) : "";
 }
 
+function formatCurrentNonAnnualLeaveTotal(
+  employee: AdminEmployee | undefined,
+  request: LeaveRequest,
+  type: (typeof nonAnnualLeaveFields)[number]["type"],
+) {
+  const requestTypeByLeave: Record<
+    (typeof nonAnnualLeaveFields)[number]["type"],
+    string
+  > = {
+    besar: "Cuti Besar",
+    sakit: "Cuti Sakit",
+    melahirkan: "Cuti Melahirkan",
+    alasan_penting: "Cuti Alasan Penting",
+    di_luar_tanggungan_negara: "Cuti Di Luar Tanggungan Negara",
+  };
+  return request.type === requestTypeByLeave[type]
+    ? formatNonAnnualLeaveTotal(employee, type)
+    : "";
+}
+
 type HolidayDate = {
   date: string;
   label: string;
@@ -2154,7 +2174,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     drawCell("1. CUTI TAHUNAN", 15, 137, 70, 6, { bold: true });
     drawCell("PARAF PETUGAS CUTI", 85, 137, 20, 6, { bold: true, align: "center", fontSize: 5.8 });
     drawCell("2. CUTI BESAR", 105, 137, 45, 6, { bold: true });
-    drawCell(formatNonAnnualLeaveTotal(requestEmployee, "besar"), 150, 137, 45, 6, { align: "center" });
+    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "besar"), 150, 137, 45, 6, { align: "center" });
     drawCell("Tahun", 15, 143, 22, 6, { bold: true });
     drawCell("Sisa", 37, 143, 20, 6, { bold: true });
     drawCell("Keterangan", 57, 143, 28, 6, { bold: true });
@@ -2163,22 +2183,22 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       pdf.addImage(adminMark, "PNG", 87, 150, 16, 6);
     }
     drawCell("3. CUTI SAKIT", 105, 143, 45, 6, { bold: true });
-    drawCell(formatNonAnnualLeaveTotal(requestEmployee, "sakit"), 150, 143, 45, 6, { align: "center" });
+    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "sakit"), 150, 143, 45, 6, { align: "center" });
     drawCell(String(annualStatementRows[0]?.year ?? activeFiscalYear - 2), 15, 149, 22, 6);
     drawCell(String(annualStatementRows[0]?.remaining ?? 0), 37, 149, 20, 6);
     drawCell(annualStatementRows[0]?.note ?? "Tidak tersedia", 57, 149, 28, 6, { fontSize: 5.7 });
     drawCell("4. CUTI MELAHIRKAN", 105, 149, 45, 6, { bold: true });
-    drawCell(formatNonAnnualLeaveTotal(requestEmployee, "melahirkan"), 150, 149, 45, 6, { align: "center" });
+    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "melahirkan"), 150, 149, 45, 6, { align: "center" });
     drawCell(String(annualStatementRows[1]?.year ?? activeFiscalYear - 1), 15, 155, 22, 6);
     drawCell(String(annualStatementRows[1]?.remaining ?? 0), 37, 155, 20, 6);
     drawCell(annualStatementRows[1]?.note ?? "Tidak tersedia", 57, 155, 28, 6, { fontSize: 5.7 });
     drawCell("5. CUTI KARENA ALASAN PENTING", 105, 155, 45, 6, { bold: true, fontSize: 6.2 });
-    drawCell(formatNonAnnualLeaveTotal(requestEmployee, "alasan_penting"), 150, 155, 45, 6, { align: "center" });
+    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "alasan_penting"), 150, 155, 45, 6, { align: "center" });
     drawCell(String(annualStatementRows[2]?.year ?? activeFiscalYear), 15, 161, 22, 6);
     drawCell(String(annualStatementRows[2]?.remaining ?? 0), 37, 161, 20, 6);
     drawCell(annualStatementRows[2]?.note ?? "Tidak tersedia", 57, 161, 28, 6, { fontSize: 5.7 });
     drawCell("6. CUTI DI LUAR TANGGUNGAN NEGARA", 105, 161, 45, 6, { bold: true, fontSize: 6.2 });
-    drawCell(formatNonAnnualLeaveTotal(requestEmployee, "di_luar_tanggungan_negara"), 150, 161, 45, 6, { align: "center" });
+    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "di_luar_tanggungan_negara"), 150, 161, 45, 6, { align: "center" });
 
     sectionTitle("VI. ALAMAT SELAMA MENJALANKAN CUTI", 170);
     drawCell(request.address.toUpperCase(), 15, 175, 90, 40);
@@ -6135,7 +6155,7 @@ function DispositionSheet({
               <PreviewSectionTitle title="PARAF PETUGAS CUTI" />
               <PreviewSectionTitle title="2. CUTI BESAR" />
               <PreviewCell align="center">
-                {formatNonAnnualLeaveTotal(employee, "besar")}
+                {formatCurrentNonAnnualLeaveTotal(employee, request, "besar")}
               </PreviewCell>
             </tr>
             <tr>
@@ -6154,7 +6174,7 @@ function DispositionSheet({
               </td>
               <PreviewSectionTitle title="3. CUTI SAKIT" />
               <PreviewCell align="center">
-                {formatNonAnnualLeaveTotal(employee, "sakit")}
+                {formatCurrentNonAnnualLeaveTotal(employee, request, "sakit")}
               </PreviewCell>
             </tr>
             {annualStatementRows.map((quota, index) => (
@@ -6170,8 +6190,9 @@ function DispositionSheet({
                   ][index] ?? ""}
                 />
                 <PreviewCell align="center">
-                  {formatNonAnnualLeaveTotal(
+                  {formatCurrentNonAnnualLeaveTotal(
                     employee,
+                    request,
                     ["melahirkan", "alasan_penting", "di_luar_tanggungan_negara"][index] as (typeof nonAnnualLeaveFields)[number]["type"],
                   )}
                 </PreviewCell>

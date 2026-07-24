@@ -255,6 +255,12 @@ export async function GET(request: Request) {
         { type: String(row.jenis_cuti), days: Number(row.jumlah_hari ?? 0) },
       ]);
     }
+    const nonAnnualLeaveBaseByNip = new Map(
+      [...nonAnnualLeavesByNip.entries()].map(([nip, leaves]) => [
+        nip,
+        leaves.map((leave) => ({ ...leave })),
+      ]),
+    );
     const activeYear = getJakartaYear();
     for (const row of requestRows) {
       const type = String(row.jenis_cuti);
@@ -297,6 +303,7 @@ export async function GET(request: Request) {
         approver: String(row.pejabat_nama ?? "Pejabat Berwenang"),
         quotas: quotasByNip.get(nip) ?? [],
         nonAnnualLeaves: nonAnnualLeavesByNip.get(nip) ?? [],
+        nonAnnualLeaveBase: nonAnnualLeaveBaseByNip.get(nip) ?? [],
         bknMode: primaryRole === "PPPK" ? "Batas sesuai ketentuan" : "Normal",
         whatsapp: row.no_whatsapp ? "Aktif" : "Perlu cek",
         whatsappNumber: String(row.no_whatsapp ?? ""),

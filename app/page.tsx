@@ -305,6 +305,10 @@ type AdminEmployee = {
     type: "besar" | "sakit" | "melahirkan" | "alasan_penting" | "di_luar_tanggungan_negara";
     days: number;
   }[];
+  nonAnnualLeaveBase?: {
+    type: "besar" | "sakit" | "melahirkan" | "alasan_penting" | "di_luar_tanggungan_negara";
+    days: number;
+  }[];
   bknMode: string;
   whatsapp: string;
   whatsappNumber: string;
@@ -359,6 +363,28 @@ function formatCurrentNonAnnualLeaveTotal(
   return request.type === requestTypeByNonAnnualLeave[type]
     ? formatNonAnnualLeaveTotal(employee, type)
     : "";
+}
+
+function getNonAnnualLeaveTotalForRecap(
+  employee: AdminEmployee,
+  type: (typeof nonAnnualLeaveFields)[number]["type"],
+  requests: LeaveRequest[],
+  year: number,
+) {
+  const initialTotal =
+    employee.nonAnnualLeaveBase?.find((leave) => leave.type === type)?.days ??
+    getNonAnnualLeaveTotal(employee, type);
+  const requestedDays = requests
+    .filter(
+      (request) =>
+        request.nip === employee.nip &&
+        request.type === requestTypeByNonAnnualLeave[type] &&
+        request.status !== "Ditolak" &&
+        (request.submittedYear ?? Number(request.submittedAt.slice(0, 4))) === year,
+    )
+    .reduce((total, request) => total + request.days, 0);
+
+  return initialTotal + requestedDays;
 }
 
 type HolidayDate = {
@@ -2653,7 +2679,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           ...years.map((year) => `${employee.quotas.find((quota) => quota.year === year)?.remaining ?? 0} hari`),
           ...nonAnnualLeaveFields.map(
             ({ type }) =>
-              `${getNonAnnualLeaveTotal(employee, type)} hari`,
+              `${getNonAnnualLeaveTotalForRecap(employee, type, requests, activeFiscalYear)} hari`,
           ),
         ];
         const lines = values.map((value, valueIndex) =>

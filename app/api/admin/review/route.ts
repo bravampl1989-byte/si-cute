@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/db/client";
 import { invalidateDashboardCache } from "@/lib/dashboard-cache";
 import { sendWhatsApp } from "@/lib/whatsapp";
+import { saveRequestSignature } from "@/lib/request-signatures";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export async function POST(request: NextRequest) {
       noSurat?: string;
       catatan?: string;
       adminNip?: string;
+      signature?: string;
     };
 
     if (!body.requestId || !body.action || !body.adminNip) {
@@ -26,6 +28,12 @@ export async function POST(request: NextRequest) {
     if (body.action === "setuju" && !body.noSurat?.trim()) {
       return NextResponse.json(
         { error: "Nomor surat wajib diisi untuk keputusan setuju." },
+        { status: 400 },
+      );
+    }
+    if (body.action === "setuju" && !body.signature?.trim()) {
+      return NextResponse.json(
+        { error: "Paraf Admin wajib diisi untuk keputusan setuju." },
         { status: 400 },
       );
     }
@@ -67,6 +75,14 @@ export async function POST(request: NextRequest) {
         (${body.requestId}, ${body.adminNip}, 'tingkat_0_admin', ${decision},
          ${body.catatan ?? ""}, CURRENT_TIMESTAMP)
     `);
+    if (body.action === "setuju" && body.signature) {
+      await saveRequestSignature(
+        body.requestId,
+        "admin",
+        body.adminNip,
+        body.signature,
+      );
+    }
 
     // Send WA notification if approved (forwarded to atasan)
     if (body.action === "setuju") {

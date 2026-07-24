@@ -100,6 +100,7 @@ type LeaveRequest = {
   attachmentType?: string | null;
   attachmentUrl?: string | null;
   applicantSignature?: string | null;
+  adminSignature?: string | null;
   reviewerSignature?: string | null;
   approverSignature?: string | null;
     noSurat?: string | null;
@@ -1419,6 +1420,10 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       showToast("Nomor surat wajib diisi Admin sebelum meneruskan pengajuan.");
       return;
     }
+    if (adminSetsNoSurat && !manualSignatures[accountNip]) {
+      showToast("Paraf Admin wajib diisi sebelum pengajuan diteruskan.");
+      return;
+    }
     if (
       isApprovalDecision &&
       (viewRole === "atasan" || viewRole === "pyb") &&
@@ -1472,7 +1477,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
           note: finalNote,
           approverNip: accountNip,
           noSurat: adminSetsNoSurat ? noSurat : undefined,
-          signature: (viewRole === "atasan" || viewRole === "pyb") && isApprovalDecision ? manualSignatures[accountNip] : undefined,
+          signature: (viewRole === "admin" || viewRole === "atasan" || viewRole === "pyb") && isApprovalDecision ? manualSignatures[accountNip] : undefined,
         }),
       });
       const result = (await response.json()) as {
@@ -1877,6 +1882,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     const reviewerEmployee = adminEmployees.find(
       (employee) => employee.name === request.reviewer,
     );
+    const adminEmployee = adminEmployees.find((employee) =>
+      hasEmployeeRole(employee, "Admin Pembuat Daftar Cuti"),
+    );
     const approverEmployee = adminEmployees.find(
       (employee) => employee.name === request.approver,
     );
@@ -1888,6 +1896,8 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     const hasApproverSignature =
       request.status === "Disetujui" || request.status === "Ditolak";
     const employeeMark = request.applicantSignature ?? manualSignatures[request.nip] ?? "";
+    const adminMark =
+      request.adminSignature ?? manualSignatures[adminEmployee?.nip ?? ""] ?? "";
     const reviewerMark = request.reviewerSignature ?? manualSignatures[reviewerEmployee?.nip ?? ""] ?? "";
     const approverMark =
       request.approverSignature ?? manualSignatures[approverEmployee?.nip ?? currentPybNip] ?? "";
@@ -2001,6 +2011,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       drawCell("KETERANGAN", 95, 147, 35, 6, { bold: true, align: "center" });
       drawCell("PARAF PETUGAS CUTI", 130, 147, 65, 6, { bold: true, align: "center", fontSize: 6.2 });
       drawCell("", 130, 153, 65, 30);
+      if (adminMark) {
+        pdf.addImage(adminMark, "PNG", 151.5, 162, 22, 8);
+      }
       annualStatementRows.forEach((quota, index) => {
         const y = 153 + index * 6;
         drawCell(String(quota.year), 50, y, 25, 6, { align: "center" });
@@ -2137,6 +2150,9 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     drawCell("Sisa", 37, 143, 20, 6, { bold: true });
     drawCell("Keterangan", 57, 143, 28, 6, { bold: true });
     drawCell("", 85, 143, 20, 24);
+    if (adminMark) {
+      pdf.addImage(adminMark, "PNG", 87, 150, 16, 6);
+    }
     drawCell("3. CUTI SAKIT", 105, 143, 45, 6, { bold: true });
     drawCell(String(getNonAnnualLeaveTotal(requestEmployee, "sakit")), 150, 143, 45, 6, { align: "center" });
     drawCell(String(annualStatementRows[0]?.year ?? activeFiscalYear - 2), 15, 149, 22, 6);
@@ -3356,18 +3372,18 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
                       )}
                       <div>
                         <p className="text-sm font-semibold">
-                          Tanda tangan {viewRole === "admin" ? "Admin" : viewRole === "atasan" ? "Atasan Langsung" : "Pejabat Berwenang"}
+                          {viewRole === "admin" ? "Paraf Admin" : `Tanda tangan ${viewRole === "atasan" ? "Atasan Langsung" : "Pejabat Berwenang"}`}
                         </p>
                         <p className="mt-1 text-xs text-muted-foreground">
                           {viewRole === "admin"
-                            ? "Nomor surat menjadi syarat wajib sebelum keputusan Setuju dapat diproses."
+                            ? "Nomor surat dan paraf Admin wajib diisi sebelum keputusan Setuju dapat diproses."
                             : "Tanda tangan wajib diisi sebelum tombol Setuju dapat memproses keputusan. Nomor surat dikunci dari tahap Admin."}
                         </p>
                       </div>
-                      {viewRole !== "admin" ? <SignaturePad
+                      <SignaturePad
                         value={manualSignatures[accountNip] ?? ""}
                         onChange={(dataUrl) => saveManualSignature(accountNip, dataUrl)}
-                      /> : null}
+                      />
                     </div>
                   ) : null}
 
@@ -6103,7 +6119,7 @@ function DispositionSheet({
           </colgroup>
           <tbody>
             <tr>
-              <PreviewSectionTitle title="V. CATATAN CUTI" colSpan={5} />
+              <PreviewSectionTitle title="V. CATATAN CUTI" colSpan={6} />
             </tr>
             <tr>
               <PreviewSectionTitle title="1. CUTI TAHUNAN" colSpan={3} />
@@ -6117,7 +6133,16 @@ function DispositionSheet({
               <PreviewLabel>Tahun</PreviewLabel>
               <PreviewLabel>Sisa</PreviewLabel>
               <PreviewLabel>Keterangan</PreviewLabel>
-              <td className="border border-black" rowSpan={4} />
+              <td className="border border-black p-1 align-middle" rowSpan={4}>
+                {request.adminSignature ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    alt="Paraf Admin"
+                    className="mx-auto h-14 w-full object-contain"
+                    src={request.adminSignature}
+                  />
+                ) : null}
+              </td>
               <PreviewSectionTitle title="3. CUTI SAKIT" />
               <PreviewCell align="center">
                 {getNonAnnualLeaveTotal(employee, "sakit")}
@@ -6470,7 +6495,16 @@ function PppkDispositionSheet({
                 <PreviewCell>{quota.remaining}</PreviewCell>
                 <PreviewCell>{quota.note}</PreviewCell>
                 {index === 0 ? (
-                  <td className="border border-black" rowSpan={5} />
+                  <td className="border border-black p-1 align-middle" rowSpan={5}>
+                    {request.adminSignature ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        alt="Paraf Admin"
+                        className="mx-auto h-14 w-full object-contain"
+                        src={request.adminSignature}
+                      />
+                    ) : null}
+                  </td>
                 ) : null}
               </tr>
             ))}

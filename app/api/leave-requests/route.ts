@@ -219,6 +219,12 @@ export async function PATCH(request: Request) {
         { status: 400 },
       );
     }
+    if (adminApproval && !body.signature?.trim()) {
+      return NextResponse.json(
+        { error: "Paraf Admin wajib diisi sebelum pengajuan diteruskan." },
+        { status: 400 },
+      );
+    }
     if (continuedApproval && !currentNoSurat) {
       return NextResponse.json(
         { error: "Nomor surat belum diisi Admin. Pengajuan belum dapat diteruskan." },
@@ -295,6 +301,7 @@ export async function PATCH(request: Request) {
            ${body.note ?? ""}, CURRENT_TIMESTAMP)
       `);
     }
+    if (currentStatus === "pending_admin" && status === "pending_atasan" && body.signature) await saveRequestSignature(numericId, "admin", body.approverNip, body.signature);
     if (currentStatus === "pending_atasan" && status === "pending_pejabat" && body.signature) await saveRequestSignature(numericId, "atasan", body.approverNip, body.signature);
     if (currentStatus === "pending_pejabat" && status === "disetujui" && body.signature) await saveRequestSignature(numericId, "pyb", body.approverNip, body.signature);
 

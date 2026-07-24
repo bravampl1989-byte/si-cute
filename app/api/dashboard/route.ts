@@ -320,6 +320,7 @@ export async function GET(request: Request) {
         attachmentUrl: row.lampiran_url ? String(row.lampiran_url) : null,
         noSurat: row.no_surat ? String(row.no_surat) : null,
         applicantSignature: signatures.get(String(row.id))?.pemohon ?? null,
+        adminSignature: signatures.get(String(row.id))?.admin ?? null,
         reviewerSignature: signatures.get(String(row.id))?.atasan ?? null,
         approverSignature: signatures.get(String(row.id))?.pyb ?? null,
       };

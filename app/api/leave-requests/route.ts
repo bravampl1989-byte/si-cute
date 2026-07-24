@@ -214,7 +214,7 @@ export async function POST(request: Request) {
     const totalLine = type === "tahunan"
       ? ""
       : `\nTotal ${leaveTypeLabels[type]}: ${Number(totalRows[0]?.total ?? 0)} hari`;
-    const message = `📋 *Pengajuan Cuti Baru Menunggu Verifikasi Admin*\n\nPegawai: ${applicant[0]?.nama ?? body.nip}\nNIP: ${body.nip}\nJenis cuti: ${body.type}\nTanggal: ${body.startDate} s/d ${body.endDate}\nDurasi: ${workingDays} hari kerja${totalLine}\n\nSilakan buka SI CUTE untuk memeriksa dokumen dan mengisi nomor surat.`;
+    const message = `📋 *Pengajuan Cuti Baru Menunggu Verifikasi Admin*\n\nPegawai: ${applicant[0]?.nama ?? body.nip}\nNIP: ${body.nip}\nJenis cuti: ${body.type}\nTanggal: ${body.startDate} s/d ${body.endDate}\nDurasi: ${workingDays} hari kerja${totalLine}\n\nSilakan buka SI CUTE untuk memeriksa dokumen dan mengisi nomor surat dengan link https://sicute.pa-sampang.go.id/.`;
 
     await Promise.all(
       admins.map(async (admin) => {
@@ -442,7 +442,7 @@ export async function PATCH(request: Request) {
         const totalLine = recipient.jenisCuti === "tahunan"
           ? ""
           : `\nTotal ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}: ${Number(totalRows[0]?.total ?? 0)} hari`;
-        const message = `📋 *Pengajuan Cuti Menunggu Persetujuan Atasan*\n\nPegawai: ${recipient.namaPegawai}\nJenis cuti: ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari${totalLine}\nNo. Surat: ${body.noSurat}\n\nPengajuan telah diverifikasi Admin. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("atasan", recipient.atasanNip)}`;
+        const message = `📋 *Pengajuan Cuti Menunggu Persetujuan Atasan*\n\nPegawai: ${recipient.namaPegawai}\nJenis cuti: ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari${totalLine}\nNo. Surat: ${body.noSurat}\n\nPengajuan telah diverifikasi Admin. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("atasan", recipient.atasanNip)}\n\nBuka SI CUTE dengan link https://sicute.pa-sampang.go.id/.`;
         try {
           const result = await sendWhatsApp({
             to: recipient.noWhatsappAtasan,
@@ -503,7 +503,7 @@ export async function PATCH(request: Request) {
         const totalLine = recipient.jenisCuti === "tahunan"
           ? ""
           : `\nTotal ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}: ${Number(totalRows[0]?.total ?? 0)} hari`;
-        const message = `📋 *Pengajuan Cuti Menunggu Keputusan PYB*\n\nPegawai: ${recipient.namaPegawai}\nNIP: ${recipient.nipPegawai}\nJenis cuti: ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari${totalLine}\nNo. Surat: ${currentNoSurat ?? "-"}\n\nAtasan langsung telah menyetujui pengajuan. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("pyb", recipient.pybNip)}`;
+        const message = `📋 *Pengajuan Cuti Menunggu Keputusan PYB*\n\nPegawai: ${recipient.namaPegawai}\nNIP: ${recipient.nipPegawai}\nJenis cuti: ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari${totalLine}\nNo. Surat: ${currentNoSurat ?? "-"}\n\nAtasan langsung telah menyetujui pengajuan. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("pyb", recipient.pybNip)}\n\nBuka SI CUTE dengan link https://sicute.pa-sampang.go.id/.`;
         try {
           const result = await sendWhatsApp({
             to: recipient.noWhatsappPyb,
@@ -569,7 +569,7 @@ export async function PATCH(request: Request) {
             : status === "ditolak"
               ? "DITOLAK"
               : "DITUNDA / DIKEMBALIKAN UNTUK PERBAIKAN";
-        const message = `📋 *Keputusan Cuti oleh PYB*\n\nPengajuan: ${resultLabel}\nPegawai: ${requestInfo.namaPegawai}\nJenis cuti: ${requestInfo.jenisCuti}\nTanggal: ${requestInfo.tglMulai} s/d ${requestInfo.tglSelesai}\nDurasi: ${requestInfo.jumlahHari} hari\nNo. Surat: ${requestInfo.noSurat ?? "-"}\n\nSilakan buka SI CUTE untuk melihat rincian keputusan.`;
+        const message = `📋 *Keputusan Cuti oleh PYB*\n\nPengajuan: ${resultLabel}\nPegawai: ${requestInfo.namaPegawai}\nJenis cuti: ${requestInfo.jenisCuti}\nTanggal: ${requestInfo.tglMulai} s/d ${requestInfo.tglSelesai}\nDurasi: ${requestInfo.jumlahHari} hari\nNo. Surat: ${requestInfo.noSurat ?? "-"}\n\nSilakan buka SI CUTE untuk melihat rincian keputusan dengan link https://sicute.pa-sampang.go.id/.`;
         const recipients = [
           ...(requestInfo.noWhatsappPemohon
             ? [{ nip: requestInfo.nipPegawai, noWhatsapp: requestInfo.noWhatsappPemohon }]

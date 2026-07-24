@@ -1455,9 +1455,8 @@ Lama Cuti: ${waTemplateRequest.days} hari kerja${waTemplateTotalLine}
 Alasan: ${waTemplateRequest.reason}
 
 Silakan buka aplikasi SI CUTE untuk memberikan keputusan Setujui, Tunda atau Tolak.
-Link: https://sicute.pa-sampang.go.id/login
 
-Pesan ini dikirim otomatis oleh SI CUTE.`;
+Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute.pa-sampang.go.id/.`;
 
   async function handleSupportingDocumentChange(file: File | null) {
     if (!file) {

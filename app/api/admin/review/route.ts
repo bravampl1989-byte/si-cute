@@ -120,7 +120,7 @@ Jenis Cuti: ${row.jenis_cuti}
 Tanggal: ${row.tgl_mulai} s/d ${row.tgl_selesai}
 Jumlah Hari: ${row.jumlah_hari} hari${noSuratLine}
 
-Telah diverifikasi admin. Mohon tinjau dan putuskan.`;
+Telah diverifikasi admin. Mohon tinjau dan putuskan dengan link https://sicute.pa-sampang.go.id/.`;
 
           await sendWhatsApp({
             to: row.no_whatsapp_atasan,

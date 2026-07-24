@@ -2515,14 +2515,19 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
     });
     const years = [activeFiscalYear, activeFiscalYear - 1, activeFiscalYear - 2];
     const columns = [
-      { label: "No", width: 8 },
-      { label: "NIP", width: 30 },
-      { label: "Nama Pegawai", width: 45 },
-      { label: "Jabatan", width: 43 },
-      { label: "Peran", width: 32 },
-      { label: "Gol/Ruang", width: 25 },
-      { label: "Masa Kerja", width: 22 },
-      ...years.map((year) => ({ label: `Sisa ${year}`, width: 18 })),
+      { label: "No", width: 6 },
+      { label: "NIP", width: 23 },
+      { label: "Nama Pegawai", width: 35 },
+      { label: "Jabatan", width: 30 },
+      { label: "Peran", width: 20 },
+      { label: "Gol/Ruang", width: 21 },
+      { label: "Masa Kerja", width: 17 },
+      ...years.map((year) => ({ label: `Sisa ${year}`, width: 12 })),
+      { label: "Cuti Besar", width: 16 },
+      { label: "Cuti Sakit", width: 16 },
+      { label: "Cuti Melahirkan", width: 16 },
+      { label: "Cuti Alasan Penting", width: 16 },
+      { label: "Cuti di Luar Tanggungan Negara", width: 16 },
     ];
     const drawHeader = () => {
       pdf.setFont("helvetica", "bold");
@@ -2537,14 +2542,15 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       pdf.setFillColor(15, 23, 42);
       pdf.setTextColor(255, 255, 255);
       pdf.setFont("helvetica", "bold");
-      pdf.setFontSize(6.5);
+      pdf.setFontSize(5.5);
       columns.forEach((column) => {
-        pdf.rect(x, 22, column.width, 8, "F");
-        pdf.text(column.label, x + column.width / 2, 27, { align: "center" });
+        pdf.rect(x, 22, column.width, 12, "F");
+        const headerLines = pdf.splitTextToSize(column.label, column.width - 1);
+        pdf.text(headerLines, x + column.width / 2, 25, { align: "center" });
         x += column.width;
       });
       pdf.setTextColor(0, 0, 0);
-      return 30;
+      return 34;
     };
 
     let y = drawHeader();
@@ -2560,6 +2566,10 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
           hasEmployeeRole(employee, "PPPK") ? "-" : employee.grade,
           `${employee.serviceYears} th ${employee.serviceMonths} bl`,
           ...years.map((year) => `${employee.quotas.find((quota) => quota.year === year)?.remaining ?? 0} hari`),
+          ...nonAnnualLeaveFields.map(
+            ({ type }) =>
+              `${getNonAnnualLeaveTotal(employee, type)} hari`,
+          ),
         ];
         const lines = values.map((value, valueIndex) =>
           pdf.splitTextToSize(value, columns[valueIndex].width - 2),
@@ -2571,7 +2581,7 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
         }
         let x = 10;
         pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(6.2);
+        pdf.setFontSize(5.5);
         columns.forEach((column, columnIndex) => {
           pdf.rect(x, y, column.width, rowHeight);
           const center = columnIndex === 0 || columnIndex >= columns.length - years.length;

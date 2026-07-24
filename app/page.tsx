@@ -387,6 +387,27 @@ function getNonAnnualLeaveTotalForRecap(
   return initialTotal + requestedDays;
 }
 
+function getCurrentNonAnnualLeaveTotalForEmployeeForm(
+  employee: AdminEmployee | undefined,
+  type: (typeof nonAnnualLeaveFields)[number]["type"],
+  requests: LeaveRequest[],
+) {
+  if (!employee) return 0;
+  const initialTotal =
+    employee.nonAnnualLeaveBase?.find((leave) => leave.type === type)?.days ??
+    getNonAnnualLeaveTotal(employee, type);
+  const requestedDays = requests
+    .filter(
+      (request) =>
+        request.nip === employee.nip &&
+        request.type === requestTypeByNonAnnualLeave[type] &&
+        request.status !== "Ditolak" &&
+        (request.submittedYear ?? Number(request.submittedAt.slice(0, 4))) === activeFiscalYear,
+    )
+    .reduce((total, request) => total + request.days, 0);
+  return initialTotal + requestedDays;
+}
+
 type HolidayDate = {
   date: string;
   label: string;
@@ -4852,6 +4873,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           mode={dialog.mode}
           employee={dialog.employee}
           employees={adminEmployees}
+          requests={requests}
           onCancel={() => setDialog(null)}
           onConfirm={confirmAction}
         />
@@ -5532,6 +5554,7 @@ function ActionDialog({
   mode,
   employee,
   employees,
+  requests,
   onCancel,
   onConfirm,
 }: {
@@ -5541,6 +5564,7 @@ function ActionDialog({
   mode?: "add" | "edit" | "delete";
   employee?: AdminEmployee;
   employees: AdminEmployee[];
+  requests: LeaveRequest[];
   onCancel: () => void;
   onConfirm: (updatedEmployee?: AdminEmployee) => void | Promise<void>;
 }) {
@@ -5614,8 +5638,11 @@ function ActionDialog({
     nonAnnualLeaveFields.map((field) => ({
       type: field.type,
       days: String(
-        employee?.nonAnnualLeaves?.find((leave) => leave.type === field.type)
-          ?.days ?? 0,
+        getCurrentNonAnnualLeaveTotalForEmployeeForm(
+          employee,
+          field.type,
+          requests,
+        ),
       ),
     })),
   );
@@ -5989,7 +6016,7 @@ function ActionDialog({
               <div>
                 <p className="text-sm font-semibold">Catatan cuti non-tahunan</p>
                 <p className="text-xs text-muted-foreground">
-                  Isi jumlah hari yang tercatat untuk masing-masing jenis cuti.
+                  Total berjalan: saldo awal ditambah pengajuan aktif pada tahun berjalan.
                 </p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">

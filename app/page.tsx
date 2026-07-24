@@ -2540,7 +2540,13 @@ Pesan ini dikirim otomatis oleh SI CUTE.`;
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(5.5);
       columns.forEach((column) => {
+        pdf.setFillColor(15, 23, 42);
         pdf.rect(x, 22, column.width, 12, "F");
+        x += column.width;
+      });
+      x = 10;
+      columns.forEach((column) => {
+        pdf.setTextColor(255, 255, 255);
         const headerLines = pdf.splitTextToSize(column.label, column.width - 1);
         pdf.text(headerLines, x + column.width / 2, 25, { align: "center" });
         x += column.width;

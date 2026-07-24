@@ -7,6 +7,7 @@ import { db } from "@/lib/db/client";
 import { sendWhatsApp } from "@/lib/whatsapp";
 import { ensureRequestSignatures, saveRequestSignature } from "@/lib/request-signatures";
 import { getWorkingDays } from "@/lib/holidays";
+import { ensureEmployeeNonAnnualLeaves } from "@/lib/employee-nonannual-leaves";
 
 export const dynamic = "force-dynamic";
 
@@ -135,6 +136,7 @@ export async function POST(request: Request) {
     }
 
     await ensureRequestSignatures();
+    await ensureEmployeeNonAnnualLeaves();
     const createdRequest = await db.run(sql`
       INSERT INTO leave_requests
         (nip, jenis_cuti, tgl_mulai, tgl_selesai, jumlah_hari, alasan, alamat_cuti, lampiran_url, status, created_at, updated_at)
@@ -162,7 +164,18 @@ export async function POST(request: Request) {
         AND u.no_whatsapp <> ''
         AND (u.peran = 'admin_hr' OR ur.peran = 'admin_hr')
     `);
-    const message = `📋 *Pengajuan Cuti Baru Menunggu Verifikasi Admin*\n\nPegawai: ${applicant[0]?.nama ?? body.nip}\nNIP: ${body.nip}\nJenis cuti: ${body.type}\nTanggal: ${body.startDate} s/d ${body.endDate}\nDurasi: ${workingDays} hari kerja\n\nSilakan buka SI CUTE untuk memeriksa dokumen dan mengisi nomor surat.`;
+    const totalRows = type === "tahunan"
+      ? []
+      : await db.all<{ total: number }>(sql`
+          SELECT
+            COALESCE((SELECT jumlah_hari FROM employee_nonannual_leaves WHERE nip = ${body.nip} AND jenis_cuti = ${type}), 0) +
+            COALESCE((SELECT SUM(jumlah_hari) FROM leave_requests WHERE nip = ${body.nip} AND jenis_cuti = ${type} AND status <> 'ditolak'), 0)
+            AS total
+        `);
+    const totalLine = type === "tahunan"
+      ? ""
+      : `\nTotal ${leaveTypeLabels[type]}: ${Number(totalRows[0]?.total ?? 0)} hari`;
+    const message = `📋 *Pengajuan Cuti Baru Menunggu Verifikasi Admin*\n\nPegawai: ${applicant[0]?.nama ?? body.nip}\nNIP: ${body.nip}\nJenis cuti: ${body.type}\nTanggal: ${body.startDate} s/d ${body.endDate}\nDurasi: ${workingDays} hari kerja${totalLine}\n\nSilakan buka SI CUTE untuk memeriksa dokumen dan mengisi nomor surat.`;
 
     await Promise.all(
       admins.map(async (admin) => {
@@ -233,6 +246,7 @@ export async function PATCH(request: Request) {
     `);
     const currentStatus = currentRows[0]?.status;
     await ensureRequestSignatures();
+    await ensureEmployeeNonAnnualLeaves();
     const currentNoSurat = currentRows[0]?.noSurat;
     const nextApprovalStatus: Record<string, string> = {
       pending_admin: "pending_atasan",
@@ -438,7 +452,18 @@ export async function PATCH(request: Request) {
       `);
       const recipient = recipients[0];
       if (recipient?.noWhatsappPyb && recipient.pybNip) {
-        const message = `📋 *Pengajuan Cuti Menunggu Keputusan PYB*\n\nPegawai: ${recipient.namaPegawai}\nNIP: ${recipient.nipPegawai}\nJenis cuti: ${recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari\nNo. Surat: ${currentNoSurat ?? "-"}\n\nAtasan langsung telah menyetujui pengajuan. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("pyb", recipient.pybNip)}`;
+        const totalRows = recipient.jenisCuti === "tahunan"
+          ? []
+          : await db.all<{ total: number }>(sql`
+              SELECT
+                COALESCE((SELECT jumlah_hari FROM employee_nonannual_leaves WHERE nip = ${recipient.nipPegawai} AND jenis_cuti = ${recipient.jenisCuti}), 0) +
+                COALESCE((SELECT SUM(jumlah_hari) FROM leave_requests WHERE nip = ${recipient.nipPegawai} AND jenis_cuti = ${recipient.jenisCuti} AND status <> 'ditolak'), 0)
+                AS total
+            `);
+        const totalLine = recipient.jenisCuti === "tahunan"
+          ? ""
+          : `\nTotal ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}: ${Number(totalRows[0]?.total ?? 0)} hari`;
+        const message = `📋 *Pengajuan Cuti Menunggu Keputusan PYB*\n\nPegawai: ${recipient.namaPegawai}\nNIP: ${recipient.nipPegawai}\nJenis cuti: ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari${totalLine}\nNo. Surat: ${currentNoSurat ?? "-"}\n\nAtasan langsung telah menyetujui pengajuan. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("pyb", recipient.pybNip)}`;
         try {
           const result = await sendWhatsApp({
             to: recipient.noWhatsappPyb,

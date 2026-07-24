@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 
-import { ensureAnnualQuotaRollover } from "@/lib/annual-rollover";
+import {
+  ensureAnnualQuotaRollover,
+  ensureNonAnnualLeaveRollover,
+} from "@/lib/annual-rollover";
 import { invalidateDashboardCache } from "@/lib/dashboard-cache";
 import { ensureFixedNationalHolidays, removeExpiredHolidays } from "@/lib/holidays";
 
@@ -15,11 +18,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    const applied = await ensureAnnualQuotaRollover();
+    const [annualApplied, nonAnnualApplied] = await Promise.all([
+      ensureAnnualQuotaRollover(),
+      ensureNonAnnualLeaveRollover(),
+    ]);
     await removeExpiredHolidays();
     await ensureFixedNationalHolidays();
-    if (applied) invalidateDashboardCache();
-    return NextResponse.json({ ok: true, applied });
+    if (annualApplied || nonAnnualApplied) invalidateDashboardCache();
+    return NextResponse.json({ ok: true, applied: annualApplied || nonAnnualApplied });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Rollover tahunan gagal." },

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { client, db } from "@/lib/db/client";
+import { ensureEmployeeNonAnnualLeaves } from "@/lib/employee-nonannual-leaves";
 
 function getJakartaYear() {
   return Number(
@@ -54,6 +55,44 @@ export async function ensureAnnualQuotaRollover(year = getJakartaYear()) {
       )
   `);
 
+  await db.run(sql`
+    INSERT INTO app_settings (key, value, updated_at)
+    VALUES (${key}, 'completed', CURRENT_TIMESTAMP)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+  `);
+  return true;
+}
+
+// Cuti selain tahunan tidak dibawa ke tahun berikutnya. Reset dilakukan sekali
+// oleh akses pertama aplikasi pada tahun baru (waktu Jakarta), atau oleh cron.
+export async function ensureNonAnnualLeaveRollover(year = getJakartaYear()) {
+  await ensureSettingsTable();
+  await ensureEmployeeNonAnnualLeaves();
+  const key = `nonannual_leave_rollover:${year}`;
+  const completed = await db.all<{ value: string }>(sql`
+    SELECT value FROM app_settings WHERE key = ${key} LIMIT 1
+  `);
+  if (completed.length) return false;
+
+  // The first deployment of this feature must preserve the existing totals.
+  // It only records the current year; every following year performs the reset.
+  const previousRollover = await db.all<{ key: string }>(sql`
+    SELECT key FROM app_settings
+    WHERE key LIKE 'nonannual_leave_rollover:%'
+    LIMIT 1
+  `);
+  if (!previousRollover.length) {
+    await db.run(sql`
+      INSERT INTO app_settings (key, value, updated_at)
+      VALUES (${key}, 'initialized', CURRENT_TIMESTAMP)
+    `);
+    return false;
+  }
+
+  await db.run(sql`
+    UPDATE employee_nonannual_leaves
+    SET jumlah_hari = 0, updated_at = CURRENT_TIMESTAMP
+  `);
   await db.run(sql`
     INSERT INTO app_settings (key, value, updated_at)
     VALUES (${key}, 'completed', CURRENT_TIMESTAMP)

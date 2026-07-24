@@ -40,6 +40,14 @@ const statusValues: Record<string, string> = {
 
 const appUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "https://sicute.pa-sampang.go.id").replace(/\/$/, "");
 
+function currentJakartaYearStart() {
+  const year = new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    timeZone: "Asia/Jakarta",
+  }).format(new Date());
+  return `${year}-01-01`;
+}
+
 function approvalLink(role: "atasan" | "pyb", nip: string) {
   return `${appUrl}/?role=${role}&nip=${encodeURIComponent(nip)}`;
 }
@@ -169,7 +177,7 @@ export async function POST(request: Request) {
       : await db.all<{ total: number }>(sql`
           SELECT
             COALESCE((SELECT jumlah_hari FROM employee_nonannual_leaves WHERE nip = ${body.nip} AND jenis_cuti = ${type}), 0) +
-            COALESCE((SELECT SUM(jumlah_hari) FROM leave_requests WHERE nip = ${body.nip} AND jenis_cuti = ${type} AND status <> 'ditolak'), 0)
+            COALESCE((SELECT SUM(jumlah_hari) FROM leave_requests WHERE nip = ${body.nip} AND jenis_cuti = ${type} AND status <> 'ditolak' AND created_at >= ${currentJakartaYearStart()}), 0)
             AS total
         `);
     const totalLine = type === "tahunan"
@@ -397,6 +405,7 @@ export async function PATCH(request: Request) {
                   WHERE nip = ${recipient.nipPegawai}
                     AND jenis_cuti = ${recipient.jenisCuti}
                     AND status <> 'ditolak'
+                    AND created_at >= ${currentJakartaYearStart()}
                 ), 0) AS total
             `);
         const totalLine = recipient.jenisCuti === "tahunan"
@@ -457,7 +466,7 @@ export async function PATCH(request: Request) {
           : await db.all<{ total: number }>(sql`
               SELECT
                 COALESCE((SELECT jumlah_hari FROM employee_nonannual_leaves WHERE nip = ${recipient.nipPegawai} AND jenis_cuti = ${recipient.jenisCuti}), 0) +
-                COALESCE((SELECT SUM(jumlah_hari) FROM leave_requests WHERE nip = ${recipient.nipPegawai} AND jenis_cuti = ${recipient.jenisCuti} AND status <> 'ditolak'), 0)
+                COALESCE((SELECT SUM(jumlah_hari) FROM leave_requests WHERE nip = ${recipient.nipPegawai} AND jenis_cuti = ${recipient.jenisCuti} AND status <> 'ditolak' AND created_at >= ${currentJakartaYearStart()}), 0)
                 AS total
             `);
         const totalLine = recipient.jenisCuti === "tahunan"

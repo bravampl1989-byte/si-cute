@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 import { client, isDatabaseConfigured } from "@/lib/db/client";
 import { ensureRequestSignatures } from "@/lib/request-signatures";
 import { ensureEmployeeNonAnnualLeaves } from "@/lib/employee-nonannual-leaves";
-import { ensureAnnualQuotaRollover } from "@/lib/annual-rollover";
+import {
+  ensureAnnualQuotaRollover,
+  ensureNonAnnualLeaveRollover,
+} from "@/lib/annual-rollover";
 import { ensureServicePeriodsCurrent } from "@/lib/service-periods";
 import {
   dashboardCacheSeconds,
@@ -53,6 +56,15 @@ const statusLabels: Record<string, string> = {
   perbaikan: "Perbaikan",
 };
 
+function getJakartaYear() {
+  return Number(
+    new Intl.DateTimeFormat("en-US", {
+      year: "numeric",
+      timeZone: "Asia/Jakarta",
+    }).format(new Date()),
+  );
+}
+
 function formatDate(value: string | null) {
   if (!value) return "-";
   const date = new Date(`${value.slice(0, 10)}T00:00:00`);
@@ -78,6 +90,7 @@ export async function GET(request: Request) {
     const [servicePeriodsChanged] = await Promise.all([
       ensureServicePeriodsCurrent(),
       ensureAnnualQuotaRollover(),
+      ensureNonAnnualLeaveRollover(),
       ensureRequestSignatures(),
       ensureEmployeeNonAnnualLeaves(),
     ]);
@@ -242,9 +255,15 @@ export async function GET(request: Request) {
         { type: String(row.jenis_cuti), days: Number(row.jumlah_hari ?? 0) },
       ]);
     }
+    const activeYear = getJakartaYear();
     for (const row of requestRows) {
       const type = String(row.jenis_cuti);
-      if (String(row.status) === "ditolak" || type === "tahunan") continue;
+      const requestYear = Number(String(row.created_at ?? "").slice(0, 4));
+      if (
+        String(row.status) === "ditolak" ||
+        type === "tahunan" ||
+        requestYear !== activeYear
+      ) continue;
       const nip = String(row.nip);
       const existing = nonAnnualLeavesByNip.get(nip) ?? [];
       const matching = existing.find((leave) => leave.type === type);

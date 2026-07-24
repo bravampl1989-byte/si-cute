@@ -25,7 +25,10 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    if (body.action === "setuju" && !body.noSurat?.trim()) {
+    if (
+      body.action === "setuju" &&
+      (!body.noSurat?.trim() || body.noSurat.trim().startsWith("/"))
+    ) {
       return NextResponse.json(
         { error: "Nomor surat wajib diisi untuk keputusan setuju." },
         { status: 400 },

@@ -1623,11 +1623,12 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       status === "Pending Pejabat" ||
       status === "Disetujui";
     const adminSetsNoSurat = isApprovalDecision && viewRole === "admin";
-    const noSurat = adminSetsNoSurat && targetRequest
-      ? `${approvalNoSurat.trim()}/${getLeaveDocumentSuffix(targetRequest)}`
+    const noSuratPrefix = approvalNoSurat.trim();
+    const noSurat = adminSetsNoSurat && targetRequest && noSuratPrefix
+      ? `${noSuratPrefix}/${getLeaveDocumentSuffix(targetRequest)}`
       : targetRequest?.noSurat ?? "";
 
-    if (adminSetsNoSurat && !noSurat) {
+    if (adminSetsNoSurat && !noSuratPrefix) {
       showToast("Nomor surat wajib diisi Admin sebelum meneruskan pengajuan.");
       return;
     }

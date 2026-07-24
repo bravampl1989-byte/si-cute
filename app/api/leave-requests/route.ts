@@ -311,7 +311,10 @@ export async function PATCH(request: Request) {
     const continuedApproval =
       (currentStatus === "pending_atasan" && status === "pending_pejabat") ||
       (currentStatus === "pending_pejabat" && status === "disetujui");
-    if (adminApproval && !body.noSurat?.trim()) {
+    if (
+      adminApproval &&
+      (!body.noSurat?.trim() || body.noSurat.trim().startsWith("/"))
+    ) {
       return NextResponse.json(
         { error: "Nomor surat wajib diisi oleh Admin sebelum diteruskan." },
         { status: 400 },

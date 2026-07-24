@@ -242,6 +242,19 @@ export async function GET(request: Request) {
         { type: String(row.jenis_cuti), days: Number(row.jumlah_hari ?? 0) },
       ]);
     }
+    for (const row of requestRows) {
+      const type = String(row.jenis_cuti);
+      if (String(row.status) === "ditolak" || type === "tahunan") continue;
+      const nip = String(row.nip);
+      const existing = nonAnnualLeavesByNip.get(nip) ?? [];
+      const matching = existing.find((leave) => leave.type === type);
+      if (matching) {
+        matching.days += Number(row.jumlah_hari ?? 0);
+      } else {
+        existing.push({ type, days: Number(row.jumlah_hari ?? 0) });
+      }
+      nonAnnualLeavesByNip.set(nip, existing);
+    }
 
     const employees = employeeRows.map((row) => {
       const nip = String(row.nip);

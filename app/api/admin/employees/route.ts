@@ -60,9 +60,16 @@ async function saveNonAnnualLeaves(nip: string, leaves: EmployeePayload["nonAnnu
   await ensureEmployeeNonAnnualLeaves();
   for (const leave of leaves ?? []) {
     if (!nonAnnualLeaveTypes.includes(leave.type)) continue;
+    const approvedRows = await db.all<{ days: number }>(sql`
+      SELECT COALESCE(SUM(jumlah_hari), 0) AS days
+      FROM leave_requests
+      WHERE nip = ${nip} AND jenis_cuti = ${leave.type} AND status <> 'ditolak'
+    `);
+    const approvedDays = Number(approvedRows[0]?.days ?? 0);
+    const baseDays = Math.max(0, (Number(leave.days) || 0) - approvedDays);
     await db.run(sql`
       INSERT INTO employee_nonannual_leaves (nip, jenis_cuti, jumlah_hari, updated_at)
-      VALUES (${nip}, ${leave.type}, ${Math.max(0, Number(leave.days) || 0)}, CURRENT_TIMESTAMP)
+      VALUES (${nip}, ${leave.type}, ${baseDays}, CURRENT_TIMESTAMP)
       ON CONFLICT(nip, jenis_cuti) DO UPDATE SET
         jumlah_hari = excluded.jumlah_hari,
         updated_at = CURRENT_TIMESTAMP

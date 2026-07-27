@@ -2545,8 +2545,19 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       historyMonth === "Semua Bulan"
         ? `Tahun ${historyYear}`
         : `${historyMonth} ${historyYear}`;
+    const nameFilter =
+      viewRole === "admin" ? historyNameSearch.trim() : "";
+    const filteredEmployeeNames = Array.from(
+      new Set(visibleHistory.map((request) => request.employee)),
+    );
+    const filteredEmployeeLabel =
+      nameFilter && filteredEmployeeNames.length === 1
+        ? filteredEmployeeNames[0]
+        : nameFilter;
     const scope =
-      viewRole === "pegawai"
+      filteredEmployeeLabel
+        ? `Pegawai: ${filteredEmployeeLabel}`
+        : viewRole === "pegawai"
         ? `${accountName} - NIP ${accountNip}`
         : viewRole === "atasan"
           ? historyScope === "pribadi"
@@ -2624,7 +2635,13 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       historyMonth === "Semua Bulan"
         ? "SEMUA-BULAN"
         : historyMonth.toUpperCase();
-    pdf.save(`RIWAYAT-CUTI-${historyYear}-${monthSlug}.pdf`);
+    const nameSlug = filteredEmployeeLabel
+      ? `-${filteredEmployeeLabel
+          .toUpperCase()
+          .replace(/[^A-Z0-9]+/g, "-")
+          .replace(/^-|-$/g, "")}`
+      : "";
+    pdf.save(`RIWAYAT-CUTI-${historyYear}-${monthSlug}${nameSlug}.pdf`);
     showToast(`PDF riwayat ${period} berhasil dibuat.`);
   }
 

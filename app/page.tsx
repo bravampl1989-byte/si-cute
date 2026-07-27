@@ -1230,6 +1230,7 @@ function HomeContent() {
         request.status === "Disetujui" && request.type === "Cuti Sakit",
     )
     .reduce((total, request) => total + request.days, 0);
+  const sickLeaveTotal = getNonAnnualLeaveTotal(currentEmployee, "sakit");
   const quotaTotal = 12;
   const pendingAdmin = dashboardRequests.filter(
       (request) => request.status === "Pending Admin",
@@ -3157,9 +3158,9 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           />
           <MetricCard
             icon={<FileCheck2 />}
-            label="Hak Cuti Sakit"
-            value="Sesuai kebutuhan"
-            detail={`${sickDaysUsed} hari digunakan • wajib dokumen medis`}
+            label="Total Cuti Sakit"
+            value={`${sickLeaveTotal} hari`}
+            detail="Akumulasi cuti sakit pegawai • wajib dokumen medis"
           />
         </section>
           </>

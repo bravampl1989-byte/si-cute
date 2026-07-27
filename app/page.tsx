@@ -2175,6 +2175,47 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
   }
 
   async function downloadPdf(request: LeaveRequest) {
+    const requestEmployee = adminEmployees.find(
+      (employee) => employee.nip === request.nip,
+    );
+    if (hasEmployeeRole(requestEmployee, "Hakim") && request.type === "Cuti Sakit") {
+      const printWindow = window.open("", "_blank", "width=900,height=1000");
+      if (!printWindow) {
+        showToast("Popup diblokir browser. Izinkan popup untuk mencetak formulir Hakim.");
+        return;
+      }
+
+      // Memakai DOM Preview yang sama agar susunan PDF tidak berbeda dengan browser.
+      setPdfPreview(request);
+      const printFromPreview = (attempt = 0) => {
+        const sheet = document.getElementById("judge-sick-leave-print");
+        if (!sheet && attempt < 20) {
+          window.setTimeout(() => printFromPreview(attempt + 1), 50);
+          return;
+        }
+        if (!sheet) {
+          printWindow.close();
+          showToast("Preview formulir Hakim belum siap. Silakan coba lagi.");
+          return;
+        }
+
+        const styles = Array.from(
+          document.querySelectorAll('link[rel="stylesheet"], style'),
+        ).map((style) => style.outerHTML).join("\n");
+        printWindow.document.open();
+        printWindow.document.write(`<!doctype html>
+<html><head><base href="${window.location.origin}/">${styles}
+<style>
+  @page { size: A4 portrait; margin: 12mm; }
+  body { margin: 0; background: #fff; }
+  #judge-sick-leave-print { width: auto !important; min-width: 0 !important; max-width: none !important; min-height: 0 !important; box-shadow: none !important; }
+</style></head><body>${sheet.outerHTML}<script>window.onload = () => { window.focus(); window.print(); }<\/script></body></html>`);
+        printWindow.document.close();
+      };
+      window.setTimeout(() => printFromPreview(), 0);
+      return;
+    }
+
     const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF({
       orientation: "portrait",
@@ -2182,9 +2223,6 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       format: "a4",
       compress: true,
     });
-    const requestEmployee = adminEmployees.find(
-      (employee) => employee.nip === request.nip,
-    );
     const reviewerEmployee = adminEmployees.find(
       (employee) => employee.name === request.reviewer,
     );
@@ -2248,108 +2286,6 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       pdf.setFillColor(235, 235, 235);
       drawCell(title, 15, y, 180, 5, { bold: true, fontSize: 6.5 });
     };
-
-    if (hasEmployeeRole(requestEmployee, "Hakim") && request.type === "Cuti Sakit") {
-      // Form Hakim hanya memakai tanda tangan yang tersimpan di pengajuan.
-      // Ini menjaga isi PDF sama dengan yang tampil pada Preview Formulir.
-      const judgeEmployeeMark = request.applicantSignature ?? "";
-      const judgeReviewerMark = request.reviewerSignature ?? "";
-      const judgeApproverMark = request.approverSignature ?? "";
-      const line = (label: string, value: string, y: number) => {
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(9);
-        pdf.text(label, 22, y);
-        pdf.line(63, y + 1, 190, y + 1);
-        pdf.text(value || "-", 65, y);
-      };
-      const diagnosis = request.judgeDiagnosis || request.reason;
-      const hospital = request.judgeHospitalName || "-";
-      const certificateDate = request.judgeCertificateDate || "-";
-      const judgeDecisionLabel =
-        request.status === "Disetujui"
-          ? "SUDAH DISETUJUI"
-          : request.status === "Ditolak"
-            ? "TERTOLAK"
-            : request.status === "Perbaikan"
-              ? "TERTUNDA"
-              : "";
-
-      pdf.setFont("helvetica", "normal");
-      pdf.setFontSize(8);
-      pdf.text("- 29 -", 105, 11, { align: "center" });
-      pdf.text(
-        [
-          "Lampiran IV : Contoh Formulir",
-          "Permintaan/Pemberian Cuti Sakit",
-          "Peraturan Mahkamah Agung Nomor 7",
-          "Tahun 2016 tentang Penegakan Disiplin",
-          "Kerja Hakim pada Mahkamah Agung dan",
-          "Badan Peradilan Yang Berada di bawahnya",
-        ],
-        102,
-        23,
-      );
-      pdf.setFontSize(10);
-      pdf.text(`Sampang, ${request.submittedAt}`, 22, 68);
-      pdf.text("Yang bertanda tangan di bawah ini:", 22, 78);
-      line("Nama", request.employee.toUpperCase(), 87);
-      line("NIP", request.nip, 96);
-      line("Pangkat/golongan ruang", requestEmployee?.grade || "-", 105);
-      line("Jabatan", requestEmployee?.position || "Hakim", 114);
-      pdf.text(`Dengan ini mengajukan permintaan cuti sakit selama ${request.days} hari,`, 22, 126);
-      pdf.text(`terhitung sejak ${request.start} sampai dengan ${request.end},`, 22, 134);
-      pdf.text("karena saya menderita sakit", 22, 142);
-      pdf.line(70, 143, 190, 143);
-      pdf.text(diagnosis, 72, 142);
-      pdf.text("sesuai diagnosa Tim Penguji", 22, 150);
-      pdf.text("Kesehatan RS", 22, 158);
-      pdf.line(55, 159, 190, 159);
-      pdf.text(`${hospital}, tertanggal ${certificateDate}`, 57, 158);
-      pdf.text("yang saya lampirkan bersama permintaan cuti ini.", 22, 166);
-      pdf.text(
-        [
-          "Demikian surat ini saya buat dengan sebenar-benarnya untuk dipertimbangkan sebagaimana",
-          "mestinya.",
-        ],
-        22,
-        181,
-      );
-      pdf.text("Hormat saya,", 22, 206);
-      pdf.text("Ttd", 22, 214);
-      if (judgeEmployeeMark) pdf.addImage(judgeEmployeeMark, "PNG", 25, 216, 34, 15);
-      pdf.line(22, 236, 72, 236);
-      pdf.text(request.employee.toUpperCase(), 25, 241);
-
-      pdf.rect(18, 250, 174, 38);
-      pdf.line(105, 250, 105, 288);
-      pdf.line(105, 267, 192, 267);
-      pdf.setFontSize(8);
-      pdf.text("Catatan Pejabat Kepegawaian", 21, 256);
-      if (request.judgeAdminNote) {
-        pdf.setFontSize(7);
-        pdf.text(pdf.splitTextToSize(request.judgeAdminNote, 80), 21, 263);
-      }
-      pdf.text("Catatan/Pertimbangan Atasan Langsung:", 108, 256);
-      if (request.judgeSupervisorNote) {
-        pdf.setFontSize(7);
-        pdf.text(pdf.splitTextToSize(request.judgeSupervisorNote, 78), 108, 261);
-      }
-      pdf.text("Keputusan Pejabat yang berwenang memberikan cuti:", 108, 273);
-      if (hasReviewerSignature && judgeReviewerMark && !request.judgeSupervisorNote) {
-        pdf.addImage(judgeReviewerMark, "PNG", 137, 257, 28, 7);
-      }
-      if (judgeDecisionLabel) {
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(8);
-        pdf.text(judgeDecisionLabel, 150, 282, { align: "center" });
-      } else if (hasApproverSignature && judgeApproverMark) {
-        pdf.addImage(judgeApproverMark, "PNG", 137, 274, 28, 7);
-      }
-
-      pdf.save(`${request.id}-HAKIM.pdf`);
-      showToast(`PDF Cuti Sakit Hakim ${request.id} berhasil diunduh.`);
-      return;
-    }
 
     if (hasEmployeeRole(requestEmployee, "PPPK")) {
       pdf.setLineWidth(0.25);
@@ -5219,7 +5155,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           <section className="flex h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Preview formulir cuti">
             <header className="flex items-center justify-between border-b px-4 py-3">
               <div><p className="font-semibold">Preview formulir cuti</p><p className="text-sm text-muted-foreground">{pdfPreview.id} - {pdfPreview.employee}</p></div>
-              <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => downloadPdf(pdfPreview)}><Download className="h-4 w-4" />Unduh PDF</Button><Button size="icon" variant="ghost" onClick={() => setPdfPreview(null)} aria-label="Tutup preview"><X className="h-5 w-5" /></Button></div>
+              <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => downloadPdf(pdfPreview)}><Download className="h-4 w-4" />{hasEmployeeRole(adminEmployees.find((employee) => employee.nip === pdfPreview.nip), "Hakim") && pdfPreview.type === "Cuti Sakit" ? "Cetak / Simpan PDF" : "Unduh PDF"}</Button><Button size="icon" variant="ghost" onClick={() => setPdfPreview(null)} aria-label="Tutup preview"><X className="h-5 w-5" /></Button></div>
             </header>
             <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3"><DispositionSheet request={pdfPreview} employee={adminEmployees.find((employee) => employee.nip === pdfPreview.nip)} employees={adminEmployees} /></div>
           </section>
@@ -6947,7 +6883,7 @@ function JudgeSickLeaveSheet({
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
-      <div className="mx-auto min-h-[1120px] w-full min-w-[820px] max-w-[900px] bg-white px-16 py-10 text-[13px] leading-snug text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)]">
+      <div id="judge-sick-leave-print" className="mx-auto min-h-[1120px] w-full min-w-[820px] max-w-[900px] bg-white px-16 py-10 text-[13px] leading-snug text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)]">
         <p className="text-center">- 29 -</p>
         <div className="ml-auto mt-8 w-[330px]">
           <p>Lampiran IV : Contoh Formulir</p>

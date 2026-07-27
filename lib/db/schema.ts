@@ -15,6 +15,7 @@ export const users = sqliteTable("users", {
     enum: [
       "admin_hr",
       "pegawai",
+      "hakim",
       "pppk",
       "atasan_langsung",
       "pejabat_berwenang",
@@ -37,6 +38,7 @@ export const userRoles = sqliteTable(
       enum: [
         "admin_hr",
         "pegawai",
+        "hakim",
         "pppk",
         "atasan_langsung",
         "pejabat_berwenang",

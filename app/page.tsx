@@ -442,6 +442,7 @@ function formatEmployeeRoles(employee: Pick<AdminEmployee, "role" | "roles">) {
 
 const employeeRoleToViewRole: Record<string, ViewRole> = {
   Pegawai: "pegawai",
+  Hakim: "pegawai",
   PPPK: "pppk",
   "Atasan Langsung": "atasan",
   "Pejabat Berwenang": "pyb",
@@ -474,6 +475,7 @@ const defaultAccountNipByRole: Record<ViewRole, string> = {
 
 const apiRoleToViewRole: Record<string, ViewRole> = {
   pegawai: "pegawai",
+  hakim: "pegawai",
   pppk: "pppk",
   atasan_langsung: "atasan",
   pejabat_berwenang: "pyb",
@@ -5644,6 +5646,7 @@ function ActionDialog({
   );
   const roleOptions = [
     "Pegawai",
+    "Hakim",
     "PPPK",
     "Atasan Langsung",
     "Pejabat Berwenang",

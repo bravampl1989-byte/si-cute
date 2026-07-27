@@ -33,6 +33,7 @@ function dashboardResponse(payload: Record<string, unknown>) {
 const roleLabels: Record<string, string> = {
   admin_hr: "Admin Pembuat Daftar Cuti",
   pegawai: "Pegawai",
+  hakim: "Hakim",
   pppk: "PPPK",
   atasan_langsung: "Atasan Langsung",
   pejabat_berwenang: "Pejabat Berwenang",

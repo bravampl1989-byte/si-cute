@@ -41,6 +41,7 @@ export async function GET() {
 
 const roleCodes: Record<string, string> = {
   Pegawai: "pegawai",
+  Hakim: "hakim",
   PPPK: "pppk",
   "Atasan Langsung": "atasan_langsung",
   "Pejabat Berwenang": "pejabat_berwenang",

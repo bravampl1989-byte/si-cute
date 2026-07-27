@@ -8,6 +8,10 @@ import { sendWhatsApp } from "@/lib/whatsapp";
 import { ensureRequestSignatures, saveRequestSignature } from "@/lib/request-signatures";
 import { getWorkingDays } from "@/lib/holidays";
 import { ensureEmployeeNonAnnualLeaves } from "@/lib/employee-nonannual-leaves";
+import {
+  ensureJudgeSickLeaveDetails,
+  saveJudgeSickLeaveDetails,
+} from "@/lib/judge-sick-leave";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +95,9 @@ export async function POST(request: Request) {
       days?: number;
       reason?: string;
       address?: string;
+      diagnosis?: string;
+      hospitalName?: string;
+      certificateDate?: string;
       attachment?: { dataUrl?: string } | null;
       signature?: string;
     };
@@ -105,6 +112,24 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         { error: "Data pengajuan belum lengkap." },
+        { status: 400 },
+      );
+    }
+
+    const judgeRows = await db.all<{ isJudge: number }>(sql`
+      SELECT CASE WHEN EXISTS (
+        SELECT 1 FROM user_roles WHERE nip = ${body.nip} AND peran = 'hakim'
+      ) OR EXISTS (
+        SELECT 1 FROM users WHERE nip = ${body.nip} AND peran = 'hakim'
+      ) THEN 1 ELSE 0 END AS isJudge
+    `);
+    const isJudgeSickLeave = type === "sakit" && Number(judgeRows[0]?.isJudge) === 1;
+    if (
+      isJudgeSickLeave &&
+      (!body.diagnosis?.trim() || !body.hospitalName?.trim() || !body.certificateDate)
+    ) {
+      return NextResponse.json(
+        { error: "Diagnosa, nama rumah sakit, dan tanggal surat keterangan wajib diisi untuk Cuti Sakit Hakim." },
         { status: 400 },
       );
     }
@@ -192,6 +217,13 @@ export async function POST(request: Request) {
     `);
 
     const requestId = Number(createdRequest.lastInsertRowid);
+    if (isJudgeSickLeave) {
+      await saveJudgeSickLeaveDetails(requestId, {
+        diagnosis: body.diagnosis!.trim(),
+        hospitalName: body.hospitalName!.trim(),
+        certificateDate: body.certificateDate!,
+      });
+    }
     if (body.signature) await saveRequestSignature(requestId, "pemohon", body.nip, body.signature);
     const applicant = await db.all<{ nama: string }>(sql`
       SELECT nama FROM users WHERE nip = ${body.nip} LIMIT 1

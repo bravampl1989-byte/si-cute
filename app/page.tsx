@@ -91,6 +91,9 @@ type LeaveRequest = {
   days: number;
   reason: string;
   address: string;
+  judgeDiagnosis?: string | null;
+  judgeHospitalName?: string | null;
+  judgeCertificateDate?: string | null;
   applicantPhone?: string;
   status: RequestStatus;
   reviewer: string;
@@ -743,6 +746,9 @@ function HomeContent() {
   const [endDate, setEndDate] = useState(() => getJakartaDateInput());
   const [reason, setReason] = useState("");
   const [address, setAddress] = useState("");
+  const [judgeDiagnosis, setJudgeDiagnosis] = useState("");
+  const [judgeHospitalName, setJudgeHospitalName] = useState("");
+  const [judgeCertificateDate, setJudgeCertificateDate] = useState("");
   const [supportingDocument, setSupportingDocument] = useState<File | null>(
     null,
   );
@@ -1122,6 +1128,8 @@ function HomeContent() {
     accountEmployee?.name ??
     (viewRole === "admin" ? "Admin Pembuat Daftar Cuti" : "Pengguna");
   const accountNip = accountEmployee?.nip ?? activeAccountNip;
+  const isJudgeSickLeave =
+    hasEmployeeRole(accountEmployee, "Hakim") && leaveType === "Cuti Sakit";
   const accountSupervisor = accountEmployee?.supervisor ?? "-";
   const pybEmployee = adminEmployees.find((employee) =>
     getEmployeeRoles(employee).includes("Pejabat Berwenang"),
@@ -1570,6 +1578,13 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       showToast(`Dokumen pendukung wajib untuk ${leaveType}.`);
       return;
     }
+    if (
+      isJudgeSickLeave &&
+      (!judgeDiagnosis.trim() || !judgeHospitalName.trim() || !judgeCertificateDate)
+    ) {
+      showToast("Diagnosa, nama rumah sakit, dan tanggal surat keterangan wajib diisi untuk Cuti Sakit Hakim.");
+      return;
+    }
     if (supportingDocument && supportingDocument.size > maxSupportingDocumentSize) {
       showToast("Ukuran dokumen pendukung maksimal 3 MB.");
       return;
@@ -1596,6 +1611,9 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           days: newRequestDays,
           reason,
           address,
+          diagnosis: judgeDiagnosis,
+          hospitalName: judgeHospitalName,
+          certificateDate: judgeCertificateDate,
           attachment,
           signature: manualSignatures[applicantNip],
         }),
@@ -2198,6 +2216,83 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       pdf.setFillColor(235, 235, 235);
       drawCell(title, 15, y, 180, 5, { bold: true, fontSize: 6.5 });
     };
+
+    if (hasEmployeeRole(requestEmployee, "Hakim") && request.type === "Cuti Sakit") {
+      const line = (label: string, value: string, y: number) => {
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.text(label, 22, y);
+        pdf.line(63, y + 1, 190, y + 1);
+        pdf.text(value || "-", 65, y);
+      };
+      const diagnosis = request.judgeDiagnosis || request.reason;
+      const hospital = request.judgeHospitalName || "-";
+      const certificateDate = request.judgeCertificateDate || "-";
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(8);
+      pdf.text("- 29 -", 105, 11, { align: "center" });
+      pdf.text(
+        [
+          "Lampiran IV : Contoh Formulir",
+          "Permintaan/Pemberian Cuti Sakit",
+          "Peraturan Mahkamah Agung Nomor 7",
+          "Tahun 2016 tentang Penegakan Disiplin",
+          "Kerja Hakim pada Mahkamah Agung dan",
+          "Badan Peradilan Yang Berada di bawahnya",
+        ],
+        102,
+        23,
+      );
+      pdf.setFontSize(10);
+      pdf.text(`Sampang, ${request.submittedAt}`, 22, 68);
+      pdf.text("Yang bertanda tangan di bawah ini:", 22, 78);
+      line("Nama", request.employee.toUpperCase(), 87);
+      line("NIP", request.nip, 96);
+      line("Pangkat/golongan ruang", requestEmployee?.grade || "-", 105);
+      line("Jabatan", requestEmployee?.position || "Hakim", 114);
+      pdf.text(`Dengan ini mengajukan permintaan cuti sakit selama ${request.days} hari,`, 22, 126);
+      pdf.text(`terhitung sejak ${request.start} sampai dengan ${request.end},`, 22, 134);
+      pdf.text("karena saya menderita sakit", 22, 142);
+      pdf.line(70, 143, 190, 143);
+      pdf.text(diagnosis, 72, 142);
+      pdf.text("sesuai diagnosa Tim Penguji", 22, 150);
+      pdf.text("Kesehatan RS", 22, 158);
+      pdf.line(55, 159, 190, 159);
+      pdf.text(`${hospital}, tertanggal ${certificateDate}`, 57, 158);
+      pdf.text("yang saya lampirkan bersama permintaan cuti ini.", 22, 166);
+      pdf.text(
+        [
+          "Demikian surat ini saya buat dengan sebenar-benarnya untuk dipertimbangkan sebagaimana",
+          "mestinya.",
+        ],
+        22,
+        181,
+      );
+      pdf.text("Hormat saya,", 22, 206);
+      pdf.text("Ttd", 22, 214);
+      if (employeeMark) pdf.addImage(employeeMark, "PNG", 25, 216, 34, 15);
+      pdf.line(22, 236, 72, 236);
+      pdf.text(request.employee.toUpperCase(), 25, 241);
+
+      pdf.rect(18, 250, 174, 38);
+      pdf.line(105, 250, 105, 288);
+      pdf.line(105, 267, 192, 267);
+      pdf.setFontSize(8);
+      pdf.text("Catatan Pejabat Kepegawaian", 21, 256);
+      pdf.text("Catatan/Pertimbangan Atasan Langsung:", 108, 256);
+      pdf.text("Keputusan Pejabat yang berwenang memberikan cuti:", 108, 273);
+      if (hasReviewerSignature && reviewerMark) {
+        pdf.addImage(reviewerMark, "PNG", 137, 257, 28, 7);
+      }
+      if (hasApproverSignature && approverMark) {
+        pdf.addImage(approverMark, "PNG", 137, 274, 28, 7);
+      }
+
+      pdf.save(`${request.id}-HAKIM.pdf`);
+      showToast(`PDF Cuti Sakit Hakim ${request.id} berhasil diunduh.`);
+      return;
+    }
 
     if (hasEmployeeRole(requestEmployee, "PPPK")) {
       pdf.setLineWidth(0.25);
@@ -3309,6 +3404,40 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
                     onChange={(event) => setAddress(event.target.value)}
                   />
                 </div>
+                {isJudgeSickLeave ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Diagnosa penyakit</Label>
+                      <Input
+                        value={judgeDiagnosis}
+                        onChange={(event) => setJudgeDiagnosis(event.target.value)}
+                        placeholder="Contoh: Demam tifoid"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Nama rumah sakit</Label>
+                      <Input
+                        value={judgeHospitalName}
+                        onChange={(event) => setJudgeHospitalName(event.target.value)}
+                        placeholder="Contoh: RSUD dr. Soetomo"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tanggal surat keterangan</Label>
+                      <Input
+                        type="date"
+                        value={judgeCertificateDate}
+                        onChange={(event) => setJudgeCertificateDate(event.target.value)}
+                        required
+                      />
+                    </div>
+                    <p className="self-end pb-1 text-xs leading-5 text-muted-foreground">
+                      Data ini akan dicetak pada formulir Cuti Sakit Hakim.
+                    </p>
+                  </>
+                ) : null}
                 <div className="space-y-3 md:col-span-2">
                   <div>
                     <Label>Tanda tangan pemohon</Label>
@@ -6326,6 +6455,17 @@ function DispositionSheet({
     (item) => item.name === request.approver,
   );
 
+  if (hasEmployeeRole(employee, "Hakim") && request.type === "Cuti Sakit") {
+    return (
+      <JudgeSickLeaveSheet
+        request={request}
+        employee={employee}
+        reviewerEmployee={reviewerEmployee}
+        approverEmployee={approverEmployee}
+      />
+    );
+  }
+
   if (hasEmployeeRole(employee, "PPPK")) {
     return (
       <PppkDispositionSheet
@@ -6686,6 +6826,95 @@ function DispositionSheet({
                     </p>
                   </div>
                 )}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function JudgeSickLeaveSheet({
+  request,
+  employee,
+  reviewerEmployee,
+  approverEmployee,
+}: {
+  request: LeaveRequest;
+  employee?: AdminEmployee;
+  reviewerEmployee?: AdminEmployee;
+  approverEmployee?: AdminEmployee;
+}) {
+  const diagnosis = request.judgeDiagnosis || request.reason;
+  const hospital = request.judgeHospitalName || "-";
+  const certificateDate = request.judgeCertificateDate || "-";
+  const reviewerSigned = request.status !== "Pending Atasan";
+  const approverSigned = ["Disetujui", "Ditolak"].includes(request.status);
+
+  return (
+    <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
+      <div className="mx-auto min-h-[1120px] w-full min-w-[820px] max-w-[900px] bg-white px-16 py-10 text-[13px] leading-snug text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)]">
+        <p className="text-center">- 29 -</p>
+        <div className="ml-auto mt-8 w-[330px]">
+          <p>Lampiran IV : Contoh Formulir</p>
+          <p>Permintaan/Pemberian Cuti Sakit</p>
+          <p>Peraturan Mahkamah Agung Nomor 7</p>
+          <p>Tahun 2016 tentang Penegakan Disiplin</p>
+          <p>Kerja Hakim pada Mahkamah Agung dan</p>
+          <p>Badan Peradilan Yang Berada di bawahnya</p>
+        </div>
+
+        <p className="mt-12">Sampang, {request.submittedAt}</p>
+        <p className="mt-5">Yang bertanda tangan di bawah ini:</p>
+        <div className="mt-2 grid grid-cols-[190px_1fr] gap-y-1">
+          <span>Nama</span><span>: {request.employee.toUpperCase()}</span>
+          <span>NIP</span><span>: {request.nip}</span>
+          <span>Pangkat/golongan ruang</span><span>: {employee?.grade || "-"}</span>
+          <span>Jabatan</span><span>: {employee?.position || "Hakim"}</span>
+        </div>
+        <p className="mt-4">
+          Dengan ini mengajukan permintaan cuti sakit selama {request.days} hari,
+          terhitung sejak {request.start} sampai dengan {request.end}, karena saya
+          menderita sakit <span className="font-semibold">{diagnosis}</span> sesuai
+          diagnosa Tim Penguji Kesehatan RS <span className="font-semibold">{hospital}</span>
+          , tertanggal <span className="font-semibold">{certificateDate}</span> yang saya
+          lampirkan bersama permintaan cuti ini.
+        </p>
+        <p className="mt-6">
+          Demikian surat ini saya buat dengan sebenar-benarnya untuk dipertimbangkan
+          sebagaimana mestinya.
+        </p>
+        <div className="mt-8 w-56 text-center">
+          <p>Hormat saya,</p>
+          <p>Ttd</p>
+          {request.applicantSignature ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="mx-auto mt-1 h-16 w-40 object-contain" src={request.applicantSignature} alt="Tanda tangan pemohon" />
+          ) : <div className="h-16" />}
+          <p className="border-t border-black pt-1 font-semibold">{request.employee.toUpperCase()}</p>
+        </div>
+
+        <table className="mt-8 w-full border-collapse border border-black text-left">
+          <tbody>
+            <tr>
+              <td className="h-40 w-1/2 border border-black p-2 align-top">Catatan Pejabat Kepegawaian</td>
+              <td className="h-20 border border-black p-2 align-top">
+                <p>Catatan/Pertimbangan Atasan Langsung:</p>
+                {reviewerSigned && request.reviewerSignature ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className="mx-auto mt-2 h-10 w-32 object-contain" src={request.reviewerSignature} alt={`Tanda tangan ${reviewerEmployee?.name ?? request.reviewer}`} />
+                ) : null}
+              </td>
+            </tr>
+            <tr>
+              <td className="border border-black p-2" />
+              <td className="h-20 border border-black p-2 align-top">
+                <p>Keputusan Pejabat yang berwenang memberikan cuti:</p>
+                {approverSigned && request.approverSignature ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className="mx-auto mt-2 h-10 w-32 object-contain" src={request.approverSignature} alt={`Tanda tangan ${approverEmployee?.name ?? request.approver}`} />
+                ) : null}
               </td>
             </tr>
           </tbody>

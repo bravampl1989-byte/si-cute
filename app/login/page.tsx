@@ -90,9 +90,13 @@ export default function LoginPage() {
           <div className="mt-5 max-w-md text-sm leading-6 text-white/70">
             <p>Pengajuan dan persetujuan cuti berjenjang berpedoman pada:</p>
             <ol className="mt-2 list-decimal space-y-1 pl-5">
-              <li>Peraturan Badan Kepegawaian Negara Nomor 7 Tahun 2021.</li>
-              <li>Surat Edaran SEKMA Nomor 13 Tahun 2029.</li>
-              <li>Keputusan SEKMA Nomor 212/SEK/SK.KP5.3/II/2024.</li>
+              <li>
+                Peraturan Badan Kepegawaian Negara Nomor 24 Tahun 2017
+                sebagaimana yang telah diubah dengan Peraturan Badan
+                Kepegawaian Negara Nomor 7 Tahun 2021.
+              </li>
+              <li>Peraturan Mahkamah Agung RI Nomor 7 Tahun 2016.</li>
+              <li>Surat Edaran SEKMA Nomor 13 Tahun 2009.</li>
             </ol>
           </div>
 

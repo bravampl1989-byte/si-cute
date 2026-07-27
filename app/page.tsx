@@ -2250,6 +2250,11 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
     };
 
     if (hasEmployeeRole(requestEmployee, "Hakim") && request.type === "Cuti Sakit") {
+      // Form Hakim hanya memakai tanda tangan yang tersimpan di pengajuan.
+      // Ini menjaga isi PDF sama dengan yang tampil pada Preview Formulir.
+      const judgeEmployeeMark = request.applicantSignature ?? "";
+      const judgeReviewerMark = request.reviewerSignature ?? "";
+      const judgeApproverMark = request.approverSignature ?? "";
       const line = (label: string, value: string, y: number) => {
         pdf.setFont("helvetica", "normal");
         pdf.setFontSize(9);
@@ -2311,7 +2316,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       );
       pdf.text("Hormat saya,", 22, 206);
       pdf.text("Ttd", 22, 214);
-      if (employeeMark) pdf.addImage(employeeMark, "PNG", 25, 216, 34, 15);
+      if (judgeEmployeeMark) pdf.addImage(judgeEmployeeMark, "PNG", 25, 216, 34, 15);
       pdf.line(22, 236, 72, 236);
       pdf.text(request.employee.toUpperCase(), 25, 241);
 
@@ -2330,15 +2335,15 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         pdf.text(pdf.splitTextToSize(request.judgeSupervisorNote, 78), 108, 261);
       }
       pdf.text("Keputusan Pejabat yang berwenang memberikan cuti:", 108, 273);
-      if (hasReviewerSignature && reviewerMark && !request.judgeSupervisorNote) {
-        pdf.addImage(reviewerMark, "PNG", 137, 257, 28, 7);
+      if (hasReviewerSignature && judgeReviewerMark && !request.judgeSupervisorNote) {
+        pdf.addImage(judgeReviewerMark, "PNG", 137, 257, 28, 7);
       }
       if (judgeDecisionLabel) {
         pdf.setFont("helvetica", "bold");
         pdf.setFontSize(8);
         pdf.text(judgeDecisionLabel, 150, 282, { align: "center" });
-      } else if (hasApproverSignature && approverMark) {
-        pdf.addImage(approverMark, "PNG", 137, 274, 28, 7);
+      } else if (hasApproverSignature && judgeApproverMark) {
+        pdf.addImage(judgeApproverMark, "PNG", 137, 274, 28, 7);
       }
 
       pdf.save(`${request.id}-HAKIM.pdf`);
@@ -6986,7 +6991,7 @@ function JudgeSickLeaveSheet({
         <table className="mt-8 w-full border-collapse border border-black text-left">
           <tbody>
             <tr>
-              <td className="h-40 w-1/2 border border-black p-2 align-top">
+              <td rowSpan={2} className="w-1/2 border border-black p-2 align-top">
                 <p>Catatan Pejabat Kepegawaian</p>
                 {request.judgeAdminNote ? (
                   <p className="mt-3 whitespace-pre-wrap">{request.judgeAdminNote}</p>
@@ -7004,7 +7009,6 @@ function JudgeSickLeaveSheet({
               </td>
             </tr>
             <tr>
-              <td className="border border-black p-2" />
               <td className="h-20 border border-black p-2 align-top">
                 <p>Keputusan Pejabat yang berwenang memberikan cuti:</p>
                 {judgeDecisionLabel ? (

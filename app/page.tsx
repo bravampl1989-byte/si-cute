@@ -751,6 +751,7 @@ function HomeContent() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [historyMonth, setHistoryMonth] = useState("Semua Bulan");
   const [historyYear, setHistoryYear] = useState(String(activeFiscalYear));
+  const [historyNameSearch, setHistoryNameSearch] = useState("");
   const [historyPage, setHistoryPage] = useState(1);
   const [approvalPage, setApprovalPage] = useState(1);
   const [notificationAuditPage, setNotificationAuditPage] = useState(1);
@@ -1318,8 +1319,12 @@ function HomeContent() {
       ),
     ),
   ).sort((a, b) => Number(b) - Number(a));
-  const visibleHistory = historySourceRequests.filter((request) =>
-    matchesHistoryPeriod(request, historyMonth, historyYear),
+  const normalizedHistoryNameSearch = historyNameSearch.trim().toLowerCase();
+  const visibleHistory = historySourceRequests.filter(
+    (request) =>
+      matchesHistoryPeriod(request, historyMonth, historyYear) &&
+      (!normalizedHistoryNameSearch ||
+        request.employee.toLowerCase().includes(normalizedHistoryNameSearch)),
   );
   const historyTotalPages = Math.max(
     1,
@@ -4572,7 +4577,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
                     </Button>
                   </div>
                 ) : null}
-                <div className="mb-5 grid gap-3 rounded-md border bg-muted/35 p-4 lg:grid-cols-[1fr_1fr_auto] lg:items-end">
+                <div className="mb-5 grid gap-3 rounded-md border bg-muted/35 p-4 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
                   <div className="space-y-2">
                     <Label>Bulan</Label>
                     <Select
@@ -4615,6 +4620,18 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
                       </SelectContent>
                     </Select>
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="history-name-search">Cari nama pegawai</Label>
+                    <Input
+                      id="history-name-search"
+                      value={historyNameSearch}
+                      onChange={(event) => {
+                        setHistoryNameSearch(event.target.value);
+                        setHistoryPage(1);
+                      }}
+                      placeholder="Ketik nama pegawai"
+                    />
+                  </div>
                   <Button
                     className="w-full lg:w-auto"
                     disabled={visibleHistory.length === 0}
@@ -4623,11 +4640,14 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
                     <Download />
                     Download PDF Riwayat
                   </Button>
-                  <p className="text-xs text-muted-foreground lg:col-span-3">
+                  <p className="text-xs text-muted-foreground lg:col-span-4">
                     Menampilkan {visibleHistory.length} pengajuan untuk periode{" "}
                     {historyMonth === "Semua Bulan"
                       ? `tahun ${historyYear}`
-                      : `${historyMonth} ${historyYear}`}.
+                      : `${historyMonth} ${historyYear}`}
+                    {historyNameSearch.trim()
+                      ? ` untuk ${historyNameSearch.trim()}`
+                      : ""}.
                   </p>
                 </div>
 

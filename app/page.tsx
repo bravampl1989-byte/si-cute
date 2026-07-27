@@ -6905,7 +6905,7 @@ function JudgeSickLeaveSheet({
           Dengan ini mengajukan permintaan cuti sakit selama {request.days} hari,
           terhitung sejak {request.start} sampai dengan {request.end}, karena saya
           menderita sakit <span className="font-semibold">{diagnosis}</span> sesuai
-          diagnosa Tim Penguji Kesehatan RS <span className="font-semibold">{hospital}</span>
+          diagnosa Tim Penguji Kesehatan <span className="font-semibold">{hospital}</span>
           , tertanggal <span className="font-semibold">{certificateDate}</span> yang saya
           lampirkan bersama permintaan cuti ini.
         </p>
@@ -6915,7 +6915,6 @@ function JudgeSickLeaveSheet({
         </p>
         <div className="mt-8 w-56 text-center">
           <p>Hormat saya,</p>
-          <p>Ttd</p>
           {request.applicantSignature ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img className="mx-auto mt-1 h-16 w-40 object-contain" src={request.applicantSignature} alt="Tanda tangan pemohon" />

@@ -2260,6 +2260,14 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       const diagnosis = request.judgeDiagnosis || request.reason;
       const hospital = request.judgeHospitalName || "-";
       const certificateDate = request.judgeCertificateDate || "-";
+      const judgeDecisionLabel =
+        request.status === "Disetujui"
+          ? "SUDAH DISETUJUI"
+          : request.status === "Ditolak"
+            ? "TERTOLAK"
+            : request.status === "Perbaikan"
+              ? "TERTUNDA"
+              : "";
 
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(8);
@@ -2325,7 +2333,11 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       if (hasReviewerSignature && reviewerMark && !request.judgeSupervisorNote) {
         pdf.addImage(reviewerMark, "PNG", 137, 257, 28, 7);
       }
-      if (hasApproverSignature && approverMark) {
+      if (judgeDecisionLabel) {
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(8);
+        pdf.text(judgeDecisionLabel, 150, 282, { align: "center" });
+      } else if (hasApproverSignature && approverMark) {
         pdf.addImage(approverMark, "PNG", 137, 274, 28, 7);
       }
 
@@ -6919,6 +6931,14 @@ function JudgeSickLeaveSheet({
   const certificateDate = request.judgeCertificateDate || "-";
   const reviewerSigned = request.status !== "Pending Atasan";
   const approverSigned = ["Disetujui", "Ditolak"].includes(request.status);
+  const judgeDecisionLabel =
+    request.status === "Disetujui"
+      ? "SUDAH DISETUJUI"
+      : request.status === "Ditolak"
+        ? "TERTOLAK"
+        : request.status === "Perbaikan"
+          ? "TERTUNDA"
+          : "";
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
@@ -6987,7 +7007,9 @@ function JudgeSickLeaveSheet({
               <td className="border border-black p-2" />
               <td className="h-20 border border-black p-2 align-top">
                 <p>Keputusan Pejabat yang berwenang memberikan cuti:</p>
-                {approverSigned && request.approverSignature ? (
+                {judgeDecisionLabel ? (
+                  <p className="mt-5 text-center font-bold">{judgeDecisionLabel}</p>
+                ) : approverSigned && request.approverSignature ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img className="mx-auto mt-2 h-10 w-32 object-contain" src={request.approverSignature} alt={`Tanda tangan ${approverEmployee?.name ?? request.approver}`} />
                 ) : null}

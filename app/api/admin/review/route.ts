@@ -25,18 +25,15 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    if (
-      body.action === "setuju" &&
-      (!body.noSurat?.trim() || body.noSurat.trim().startsWith("/"))
-    ) {
+    if (!body.noSurat?.trim() || body.noSurat.trim().startsWith("/")) {
       return NextResponse.json(
-        { error: "Nomor surat wajib diisi untuk keputusan setuju." },
+        { error: "Anda belum mengisi nomor surat." },
         { status: 400 },
       );
     }
-    if (body.action === "setuju" && !body.signature?.trim()) {
+    if (!body.signature?.trim()) {
       return NextResponse.json(
-        { error: "Paraf Admin wajib diisi untuk keputusan setuju." },
+        { error: "Anda belum mengisi paraf Admin." },
         { status: 400 },
       );
     }

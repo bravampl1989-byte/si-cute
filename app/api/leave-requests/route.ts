@@ -307,12 +307,15 @@ export async function PATCH(request: Request) {
       );
     }
 
+    const adminDecision =
+      currentStatus === "pending_admin" &&
+      ["pending_atasan", "ditolak", "perbaikan"].includes(status);
     const adminApproval = currentStatus === "pending_admin" && status === "pending_atasan";
     const continuedApproval =
       (currentStatus === "pending_atasan" && status === "pending_pejabat") ||
       (currentStatus === "pending_pejabat" && status === "disetujui");
     if (
-      adminApproval &&
+      adminDecision &&
       (!body.noSurat?.trim() || body.noSurat.trim().startsWith("/"))
     ) {
       return NextResponse.json(
@@ -320,7 +323,7 @@ export async function PATCH(request: Request) {
         { status: 400 },
       );
     }
-    if (adminApproval && !body.signature?.trim()) {
+    if (adminDecision && !body.signature?.trim()) {
       return NextResponse.json(
         { error: "Paraf Admin wajib diisi sebelum pengajuan diteruskan." },
         { status: 400 },
@@ -369,7 +372,7 @@ export async function PATCH(request: Request) {
       }
     }
 
-    if (adminApproval && body.noSurat?.trim()) {
+    if (adminDecision && body.noSurat?.trim()) {
       await db.run(sql`
         UPDATE leave_requests
         SET status = ${status}, no_surat = ${body.noSurat.trim()}, updated_at = CURRENT_TIMESTAMP
@@ -402,7 +405,7 @@ export async function PATCH(request: Request) {
            ${body.note ?? ""}, CURRENT_TIMESTAMP)
       `);
     }
-    if (currentStatus === "pending_admin" && status === "pending_atasan" && body.signature) await saveRequestSignature(numericId, "admin", body.approverNip, body.signature);
+    if (adminDecision && body.signature) await saveRequestSignature(numericId, "admin", body.approverNip, body.signature);
     if (currentStatus === "pending_atasan" && status === "pending_pejabat" && body.signature) await saveRequestSignature(numericId, "atasan", body.approverNip, body.signature);
     if (currentStatus === "pending_pejabat" && status === "disetujui" && body.signature) await saveRequestSignature(numericId, "pyb", body.approverNip, body.signature);
 

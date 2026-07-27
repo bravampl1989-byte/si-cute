@@ -1622,18 +1622,19 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       status === "Pending Atasan" ||
       status === "Pending Pejabat" ||
       status === "Disetujui";
-    const adminSetsNoSurat = isApprovalDecision && viewRole === "admin";
+    const adminSetsNoSurat =
+      viewRole === "admin" && targetRequest?.status === "Pending Admin";
     const noSuratPrefix = approvalNoSurat.trim();
     const noSurat = adminSetsNoSurat && targetRequest && noSuratPrefix
       ? `${noSuratPrefix}/${getLeaveDocumentSuffix(targetRequest)}`
       : targetRequest?.noSurat ?? "";
 
-    if (adminSetsNoSurat && !noSuratPrefix) {
-      showToast("Nomor surat wajib diisi Admin sebelum meneruskan pengajuan.");
-      return;
-    }
-    if (adminSetsNoSurat && !manualSignatures[accountNip]) {
-      showToast("Paraf Admin wajib diisi sebelum pengajuan diteruskan.");
+    if (adminSetsNoSurat && (!noSuratPrefix || !manualSignatures[accountNip])) {
+      const missingFields = [
+        !noSuratPrefix ? "nomor surat" : "",
+        !manualSignatures[accountNip] ? "paraf Admin" : "",
+      ].filter(Boolean);
+      showToast(`Anda belum mengisi ${missingFields.join(" dan ")}.`);
       return;
     }
     if (

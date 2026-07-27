@@ -167,6 +167,7 @@ export async function GET(request: Request) {
                  jsd.diagnosis AS judge_diagnosis, jsd.hospital_name AS judge_hospital_name,
                  jsd.certificate_date AS judge_certificate_date,
                  jsan.note AS judge_admin_note,
+                 jssn.note AS judge_supervisor_note,
                  r.created_at, u.nama, u.no_whatsapp, u.masa_kerja_tahun, u.masa_kerja_bulan,
                  COALESCE(a.nama, '-') AS atasan_nama,
                  (
@@ -182,6 +183,7 @@ export async function GET(request: Request) {
           JOIN users u ON u.nip = r.nip
           LEFT JOIN judge_sick_leave_details jsd ON jsd.request_id = r.id
           LEFT JOIN judge_sick_leave_admin_notes jsan ON jsan.request_id = r.id
+          LEFT JOIN judge_sick_leave_supervisor_notes jssn ON jssn.request_id = r.id
           LEFT JOIN users a ON a.nip = u.atasan_nip
           LEFT JOIN (
             SELECT request_id, catatan
@@ -348,6 +350,9 @@ export async function GET(request: Request) {
           ? formatDate(String(row.judge_certificate_date))
           : null,
         judgeAdminNote: row.judge_admin_note ? String(row.judge_admin_note) : null,
+        judgeSupervisorNote: row.judge_supervisor_note
+          ? String(row.judge_supervisor_note)
+          : null,
         applicantPhone: String(row.no_whatsapp ?? ""),
         status: statusLabels[String(row.status)] ?? String(row.status),
         reviewer: String(row.atasan_nama ?? "-"),

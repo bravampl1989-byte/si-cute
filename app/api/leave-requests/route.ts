@@ -12,6 +12,7 @@ import {
   ensureJudgeSickLeaveDetails,
   saveJudgeSickLeaveAdminNote,
   saveJudgeSickLeaveDetails,
+  saveJudgeSickLeaveSupervisorNote,
 } from "@/lib/judge-sick-leave";
 
 export const dynamic = "force-dynamic";
@@ -302,6 +303,7 @@ export async function PATCH(request: Request) {
       noSurat?: string;
       signature?: string;
       judgeAdminNote?: string;
+      judgeSupervisorNote?: string;
     };
     const numericId = Number(body.dbId ?? String(body.id ?? "").split("-").pop());
     const status = statusValues[body.status ?? ""];
@@ -442,6 +444,16 @@ export async function PATCH(request: Request) {
     if (adminDecision && body.signature) await saveRequestSignature(numericId, "admin", body.approverNip, body.signature);
     if (adminDecision && body.judgeAdminNote !== undefined) {
       await saveJudgeSickLeaveAdminNote(numericId, body.judgeAdminNote.trim());
+    }
+    if (
+      currentStatus === "pending_atasan" &&
+      status === "pending_pejabat" &&
+      body.judgeSupervisorNote !== undefined
+    ) {
+      await saveJudgeSickLeaveSupervisorNote(
+        numericId,
+        body.judgeSupervisorNote.trim(),
+      );
     }
     if (currentStatus === "pending_atasan" && status === "pending_pejabat" && body.signature) await saveRequestSignature(numericId, "atasan", body.approverNip, body.signature);
     if (currentStatus === "pending_pejabat" && status === "disetujui" && body.signature) await saveRequestSignature(numericId, "pyb", body.approverNip, body.signature);

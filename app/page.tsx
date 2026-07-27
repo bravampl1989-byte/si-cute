@@ -95,6 +95,7 @@ type LeaveRequest = {
   judgeHospitalName?: string | null;
   judgeCertificateDate?: string | null;
   judgeAdminNote?: string | null;
+  judgeSupervisorNote?: string | null;
   applicantPhone?: string;
   status: RequestStatus;
   reviewer: string;
@@ -758,6 +759,7 @@ function HomeContent() {
   const [selectedId, setSelectedId] = useState("");
   const [approvalNoSurat, setApprovalNoSurat] = useState("");
   const [judgeAdminNote, setJudgeAdminNote] = useState("");
+  const [judgeSupervisorNote, setJudgeSupervisorNote] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard");
   const [historyMonth, setHistoryMonth] = useState("Semua Bulan");
   const [historyYear, setHistoryYear] = useState(String(activeFiscalYear));
@@ -1228,6 +1230,9 @@ function HomeContent() {
   useEffect(() => {
     setJudgeAdminNote(selected.judgeAdminNote ?? "");
   }, [selected.id, selected.judgeAdminNote]);
+  useEffect(() => {
+    setJudgeSupervisorNote(selected.judgeSupervisorNote ?? "");
+  }, [selected.id, selected.judgeSupervisorNote]);
   const selectedIsJudgeSickLeave =
     selected.type === "Cuti Sakit" &&
     hasEmployeeRole(
@@ -1748,6 +1753,12 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           judgeAdminNote:
             adminSetsNoSurat && targetIsJudgeSickLeave
               ? judgeAdminNote
+              : undefined,
+          judgeSupervisorNote:
+            viewRole === "atasan" &&
+            targetRequest?.status === "Pending Atasan" &&
+            targetIsJudgeSickLeave
+              ? judgeSupervisorNote
               : undefined,
           signature: (viewRole === "admin" || viewRole === "atasan" || viewRole === "pyb") && isApprovalDecision ? manualSignatures[accountNip] : undefined,
         }),
@@ -2306,8 +2317,12 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         pdf.text(pdf.splitTextToSize(request.judgeAdminNote, 80), 21, 263);
       }
       pdf.text("Catatan/Pertimbangan Atasan Langsung:", 108, 256);
+      if (request.judgeSupervisorNote) {
+        pdf.setFontSize(7);
+        pdf.text(pdf.splitTextToSize(request.judgeSupervisorNote, 78), 108, 261);
+      }
       pdf.text("Keputusan Pejabat yang berwenang memberikan cuti:", 108, 273);
-      if (hasReviewerSignature && reviewerMark) {
+      if (hasReviewerSignature && reviewerMark && !request.judgeSupervisorNote) {
         pdf.addImage(reviewerMark, "PNG", 137, 257, 28, 7);
       }
       if (hasApproverSignature && approverMark) {
@@ -3842,6 +3857,20 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
                           />
                           <p className="text-xs text-muted-foreground">
                             Catatan ini akan tercetak pada tabel Catatan Pejabat Kepegawaian di formulir Hakim.
+                          </p>
+                        </div>
+                      ) : null}
+                      {viewRole === "atasan" && selectedIsJudgeSickLeave ? (
+                        <div className="space-y-2">
+                          <Label htmlFor="judge-supervisor-note">Catatan/Pertimbangan Atasan Langsung</Label>
+                          <Input
+                            id="judge-supervisor-note"
+                            value={judgeSupervisorNote}
+                            onChange={(event) => setJudgeSupervisorNote(event.target.value)}
+                            placeholder="Tulis catatan pertimbangan untuk formulir Cuti Sakit Hakim"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Catatan ini akan tercetak pada tabel Catatan/Pertimbangan Atasan Langsung di formulir Hakim.
                           </p>
                         </div>
                       ) : null}
@@ -6945,7 +6974,10 @@ function JudgeSickLeaveSheet({
               </td>
               <td className="h-20 border border-black p-2 align-top">
                 <p>Catatan/Pertimbangan Atasan Langsung:</p>
-                {reviewerSigned && request.reviewerSignature ? (
+                {request.judgeSupervisorNote ? (
+                  <p className="mt-2 whitespace-pre-wrap">{request.judgeSupervisorNote}</p>
+                ) : null}
+                {reviewerSigned && request.reviewerSignature && !request.judgeSupervisorNote ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img className="mx-auto mt-2 h-10 w-32 object-contain" src={request.reviewerSignature} alt={`Tanda tangan ${reviewerEmployee?.name ?? request.reviewer}`} />
                 ) : null}

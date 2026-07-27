@@ -253,7 +253,10 @@ export async function POST(request: Request) {
     const totalLine = type === "tahunan"
       ? ""
       : `\nTotal ${leaveTypeLabels[type]}: ${Number(totalRows[0]?.total ?? 0)} hari`;
-    const message = `📋 *Pengajuan Cuti Baru Menunggu Verifikasi Admin*\n\nPegawai: ${applicant[0]?.nama ?? body.nip}\nNIP: ${body.nip}\nJenis cuti: ${body.type}\nTanggal: ${body.startDate} s/d ${body.endDate}\nDurasi: ${workingDays} hari kerja${totalLine}\n\nSilakan buka SI CUTE untuk memeriksa dokumen dan mengisi nomor surat dengan link https://sicute.pa-sampang.go.id/.`;
+    const judgeSickLeaveLine = isJudgeSickLeave
+      ? `\nDiagnosa: ${body.diagnosis!.trim()}\nRS: ${body.hospitalName!.trim()}\nTanggal surat keterangan: ${body.certificateDate}`
+      : "";
+    const message = `📋 *Pengajuan Cuti Baru Menunggu Verifikasi Admin*\n\nPegawai: ${applicant[0]?.nama ?? body.nip}\nNIP: ${body.nip}\nJenis cuti: ${body.type}\nTanggal: ${body.startDate} s/d ${body.endDate}\nDurasi: ${workingDays} hari kerja${totalLine}${judgeSickLeaveLine}\n\nSilakan buka SI CUTE untuk memeriksa dokumen dan mengisi nomor surat dengan link https://sicute.pa-sampang.go.id/.`;
 
     await Promise.all(
       admins.map(async (admin) => {
@@ -327,6 +330,7 @@ export async function PATCH(request: Request) {
     const currentStatus = currentRows[0]?.status;
     await ensureRequestSignatures();
     await ensureEmployeeNonAnnualLeaves();
+    await ensureJudgeSickLeaveDetails();
     const currentNoSurat = currentRows[0]?.noSurat;
     const nextApprovalStatus: Record<string, string> = {
       pending_admin: "pending_atasan",
@@ -466,16 +470,22 @@ export async function PATCH(request: Request) {
         tglSelesai: string;
         jumlahHari: number;
         nipPegawai: string;
+        diagnosis: string | null;
+        hospitalName: string | null;
+        certificateDate: string | null;
         atasanNip: string | null;
         noWhatsappAtasan: string | null;
       }>(sql`
         SELECT u.nama AS namaPegawai, r.jenis_cuti AS jenisCuti,
                r.tgl_mulai AS tglMulai, r.tgl_selesai AS tglSelesai,
                r.jumlah_hari AS jumlahHari, r.nip AS nipPegawai, a.nip AS atasanNip,
+               jsd.diagnosis AS diagnosis, jsd.hospital_name AS hospitalName,
+               jsd.certificate_date AS certificateDate,
                a.no_whatsapp AS noWhatsappAtasan
         FROM leave_requests r
         JOIN users u ON u.nip = r.nip
         LEFT JOIN users a ON a.nip = u.atasan_nip
+        LEFT JOIN judge_sick_leave_details jsd ON jsd.request_id = r.id
         WHERE r.id = ${numericId}
       `);
       const recipient = recipients[0];
@@ -502,7 +512,10 @@ export async function PATCH(request: Request) {
         const totalLine = recipient.jenisCuti === "tahunan"
           ? ""
           : `\nTotal ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}: ${Number(totalRows[0]?.total ?? 0)} hari`;
-        const message = `📋 *Pengajuan Cuti Menunggu Persetujuan Atasan*\n\nPegawai: ${recipient.namaPegawai}\nJenis cuti: ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari${totalLine}\nNo. Surat: ${body.noSurat}\n\nPengajuan telah diverifikasi Admin. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("atasan", recipient.atasanNip)}\n\nBuka SI CUTE dengan link https://sicute.pa-sampang.go.id/.`;
+        const judgeSickLeaveLine = recipient.jenisCuti === "sakit" && recipient.diagnosis
+          ? `\nDiagnosa: ${recipient.diagnosis}\nRS: ${recipient.hospitalName ?? "-"}\nTanggal surat keterangan: ${recipient.certificateDate ?? "-"}`
+          : "";
+        const message = `📋 *Pengajuan Cuti Menunggu Persetujuan Atasan*\n\nPegawai: ${recipient.namaPegawai}\nJenis cuti: ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari${totalLine}${judgeSickLeaveLine}\nNo. Surat: ${body.noSurat}\n\nPengajuan telah diverifikasi Admin. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("atasan", recipient.atasanNip)}\n\nBuka SI CUTE dengan link https://sicute.pa-sampang.go.id/.`;
         try {
           const result = await sendWhatsApp({
             to: recipient.noWhatsappAtasan,
@@ -538,16 +551,22 @@ export async function PATCH(request: Request) {
         tglMulai: string;
         tglSelesai: string;
         jumlahHari: number;
+        diagnosis: string | null;
+        hospitalName: string | null;
+        certificateDate: string | null;
         pybNip: string | null;
         noWhatsappPyb: string | null;
       }>(sql`
         SELECT u.nama AS namaPegawai, r.nip AS nipPegawai,
                r.jenis_cuti AS jenisCuti, r.tgl_mulai AS tglMulai,
                r.tgl_selesai AS tglSelesai, r.jumlah_hari AS jumlahHari,
+               jsd.diagnosis AS diagnosis, jsd.hospital_name AS hospitalName,
+               jsd.certificate_date AS certificateDate,
                p.nip AS pybNip, p.no_whatsapp AS noWhatsappPyb
         FROM leave_requests r
         JOIN users u ON u.nip = r.nip
         LEFT JOIN users p ON p.nip = u.pejabat_nip
+        LEFT JOIN judge_sick_leave_details jsd ON jsd.request_id = r.id
         WHERE r.id = ${numericId}
       `);
       const recipient = recipients[0];
@@ -563,7 +582,10 @@ export async function PATCH(request: Request) {
         const totalLine = recipient.jenisCuti === "tahunan"
           ? ""
           : `\nTotal ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}: ${Number(totalRows[0]?.total ?? 0)} hari`;
-        const message = `📋 *Pengajuan Cuti Menunggu Keputusan PYB*\n\nPegawai: ${recipient.namaPegawai}\nNIP: ${recipient.nipPegawai}\nJenis cuti: ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari${totalLine}\nNo. Surat: ${currentNoSurat ?? "-"}\n\nAtasan langsung telah menyetujui pengajuan. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("pyb", recipient.pybNip)}\n\nBuka SI CUTE dengan link https://sicute.pa-sampang.go.id/.`;
+        const judgeSickLeaveLine = recipient.jenisCuti === "sakit" && recipient.diagnosis
+          ? `\nDiagnosa: ${recipient.diagnosis}\nRS: ${recipient.hospitalName ?? "-"}\nTanggal surat keterangan: ${recipient.certificateDate ?? "-"}`
+          : "";
+        const message = `📋 *Pengajuan Cuti Menunggu Keputusan PYB*\n\nPegawai: ${recipient.namaPegawai}\nNIP: ${recipient.nipPegawai}\nJenis cuti: ${leaveTypeLabels[recipient.jenisCuti] ?? recipient.jenisCuti}\nTanggal: ${recipient.tglMulai} s/d ${recipient.tglSelesai}\nDurasi: ${recipient.jumlahHari} hari${totalLine}${judgeSickLeaveLine}\nNo. Surat: ${currentNoSurat ?? "-"}\n\nAtasan langsung telah menyetujui pengajuan. Silakan buka SI CUTE untuk memberikan keputusan: *Setujui, Tunda, atau Tolak*.\n${approvalLink("pyb", recipient.pybNip)}\n\nBuka SI CUTE dengan link https://sicute.pa-sampang.go.id/.`;
         try {
           const result = await sendWhatsApp({
             to: recipient.noWhatsappPyb,

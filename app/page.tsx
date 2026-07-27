@@ -6919,7 +6919,7 @@ function JudgeSickLeaveSheet({
             // eslint-disable-next-line @next/next/no-img-element
             <img className="mx-auto mt-1 h-16 w-40 object-contain" src={request.applicantSignature} alt="Tanda tangan pemohon" />
           ) : <div className="h-16" />}
-          <p className="border-t border-black pt-1 font-semibold">{request.employee.toUpperCase()}</p>
+          <p className="pt-1 font-semibold">{request.employee.toUpperCase()}</p>
         </div>
 
         <table className="mt-8 w-full border-collapse border border-black text-left">

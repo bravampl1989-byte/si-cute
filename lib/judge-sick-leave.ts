@@ -14,8 +14,27 @@ export function ensureJudgeSickLeaveDetails() {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (request_id) REFERENCES leave_requests(id) ON DELETE CASCADE
     )`)
+    .then(() =>
+      client.execute(`CREATE TABLE IF NOT EXISTS judge_sick_leave_admin_notes (
+        request_id INTEGER NOT NULL PRIMARY KEY,
+        note TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (request_id) REFERENCES leave_requests(id) ON DELETE CASCADE
+      )`),
+    )
     .then(() => undefined);
   return ready;
+}
+
+export async function saveJudgeSickLeaveAdminNote(requestId: number, note: string) {
+  await ensureJudgeSickLeaveDetails();
+  await db.run(sql`
+    INSERT INTO judge_sick_leave_admin_notes (request_id, note, updated_at)
+    VALUES (${requestId}, ${note}, CURRENT_TIMESTAMP)
+    ON CONFLICT(request_id) DO UPDATE SET
+      note = excluded.note,
+      updated_at = CURRENT_TIMESTAMP
+  `);
 }
 
 export async function saveJudgeSickLeaveDetails(

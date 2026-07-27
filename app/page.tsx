@@ -94,6 +94,7 @@ type LeaveRequest = {
   judgeDiagnosis?: string | null;
   judgeHospitalName?: string | null;
   judgeCertificateDate?: string | null;
+  judgeAdminNote?: string | null;
   applicantPhone?: string;
   status: RequestStatus;
   reviewer: string;
@@ -756,6 +757,7 @@ function HomeContent() {
     useState(false);
   const [selectedId, setSelectedId] = useState("");
   const [approvalNoSurat, setApprovalNoSurat] = useState("");
+  const [judgeAdminNote, setJudgeAdminNote] = useState("");
   const [activeTab, setActiveTab] = useState("dashboard");
   const [historyMonth, setHistoryMonth] = useState("Semua Bulan");
   const [historyYear, setHistoryYear] = useState(String(activeFiscalYear));
@@ -1223,6 +1225,15 @@ function HomeContent() {
   useEffect(() => {
     setApprovalNoSurat(selected.noSurat?.split("/")[0]?.trim() || "");
   }, [selected.id, selected.noSurat]);
+  useEffect(() => {
+    setJudgeAdminNote(selected.judgeAdminNote ?? "");
+  }, [selected.id, selected.judgeAdminNote]);
+  const selectedIsJudgeSickLeave =
+    selected.type === "Cuti Sakit" &&
+    hasEmployeeRole(
+      adminEmployees.find((employee) => employee.nip === selected.nip),
+      "Hakim",
+    );
   const currentEmployee = accountEmployee;
   const annualQuotaRows =
     currentEmployee?.quotas
@@ -1654,6 +1665,12 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
 
   async function moveRequest(id: string, status: RequestStatus, note: string) {
     const targetRequest = requests.find((request) => request.id === id);
+    const targetIsJudgeSickLeave =
+      targetRequest?.type === "Cuti Sakit" &&
+      hasEmployeeRole(
+        adminEmployees.find((employee) => employee.nip === targetRequest.nip),
+        "Hakim",
+      );
     let finalNote = note;
 
     const isApprovalDecision =
@@ -1728,6 +1745,10 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           note: finalNote,
           approverNip: accountNip,
           noSurat: adminSetsNoSurat ? noSurat : undefined,
+          judgeAdminNote:
+            adminSetsNoSurat && targetIsJudgeSickLeave
+              ? judgeAdminNote
+              : undefined,
           signature: (viewRole === "admin" || viewRole === "atasan" || viewRole === "pyb") && isApprovalDecision ? manualSignatures[accountNip] : undefined,
         }),
       });
@@ -2280,6 +2301,10 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       pdf.line(105, 267, 192, 267);
       pdf.setFontSize(8);
       pdf.text("Catatan Pejabat Kepegawaian", 21, 256);
+      if (request.judgeAdminNote) {
+        pdf.setFontSize(7);
+        pdf.text(pdf.splitTextToSize(request.judgeAdminNote, 80), 21, 263);
+      }
       pdf.text("Catatan/Pertimbangan Atasan Langsung:", 108, 256);
       pdf.text("Keputusan Pejabat yang berwenang memberikan cuti:", 108, 273);
       if (hasReviewerSignature && reviewerMark) {
@@ -3806,6 +3831,20 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
                           </p>
                         </div>
                       )}
+                      {viewRole === "admin" && selectedIsJudgeSickLeave ? (
+                        <div className="space-y-2">
+                          <Label htmlFor="judge-admin-note">Catatan Pejabat Kepegawaian</Label>
+                          <Input
+                            id="judge-admin-note"
+                            value={judgeAdminNote}
+                            onChange={(event) => setJudgeAdminNote(event.target.value)}
+                            placeholder="Tulis catatan untuk formulir Cuti Sakit Hakim"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Catatan ini akan tercetak pada tabel Catatan Pejabat Kepegawaian di formulir Hakim.
+                          </p>
+                        </div>
+                      ) : null}
                       <div>
                         <p className="text-sm font-semibold">
                           {viewRole === "admin" ? "Paraf Admin" : `Tanda tangan ${viewRole === "atasan" ? "Atasan Langsung" : "Pejabat Berwenang"}`}
@@ -6898,7 +6937,12 @@ function JudgeSickLeaveSheet({
         <table className="mt-8 w-full border-collapse border border-black text-left">
           <tbody>
             <tr>
-              <td className="h-40 w-1/2 border border-black p-2 align-top">Catatan Pejabat Kepegawaian</td>
+              <td className="h-40 w-1/2 border border-black p-2 align-top">
+                <p>Catatan Pejabat Kepegawaian</p>
+                {request.judgeAdminNote ? (
+                  <p className="mt-3 whitespace-pre-wrap">{request.judgeAdminNote}</p>
+                ) : null}
+              </td>
               <td className="h-20 border border-black p-2 align-top">
                 <p>Catatan/Pertimbangan Atasan Langsung:</p>
                 {reviewerSigned && request.reviewerSignature ? (

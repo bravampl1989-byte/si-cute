@@ -362,14 +362,9 @@ function formatCurrentNonAnnualLeaveTotal(
 ) {
   if (request.type !== requestTypeByNonAnnualLeave[type]) return "";
 
-  // Setelah keputusan final PyB, catatan harus menampilkan total terbaru:
-  // misalnya 5 hari cuti sakit + pengajuan 1 hari = 6 hari.
-  if (request.status === "Disetujui") {
-    return formatNonAnnualLeaveTotal(employee, type);
-  }
-
   // Catatan pada formulir menampilkan jumlah sebelum pengajuan yang sedang
-  // diputuskan ditambahkan. Pengajuan tersebut sudah termasuk di total berjalan.
+  // dicetak ditambahkan, termasuk setelah pengajuan itu disetujui PyB.
+  // Pengajuan tersebut sudah termasuk di total berjalan.
   const totalBerjalan = getNonAnnualLeaveTotal(employee, type);
   const saldoAwal =
     employee?.nonAnnualLeaveBase?.find((leave) => leave.type === type)?.days ??

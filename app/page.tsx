@@ -631,7 +631,15 @@ function getAnnualQuotaStatementRows(
     request.status !== "Ditolak";
   let daysToDeduct = shouldProjectDeduction ? request.days : 0;
 
-  return quotas.map((quota) => {
+  const quotaByYear = new Map(quotas.map((quota) => [quota.year, quota]));
+
+  // Formulir selalu menampilkan tiga tahun kuota. Jika pegawai belum pernah
+  // memiliki/mengajukan cuti tahunan, nilai kosong ditulis sebagai angka 0.
+  return [activeFiscalYear - 2, activeFiscalYear - 1, activeFiscalYear].map((year) => {
+    const quota = quotaByYear.get(year);
+    if (!quota) {
+      return { year, remaining: 0, note: "0" };
+    }
     const deducted = Math.min(quota.remaining, daysToDeduct);
     daysToDeduct -= deducted;
     const remaining = quota.remaining - deducted;

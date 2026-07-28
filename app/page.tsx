@@ -2179,89 +2179,65 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
     const requestEmployee = adminEmployees.find(
       (employee) => employee.nip === request.nip,
     );
-    if (hasEmployeeRole(requestEmployee, "Hakim") && request.type === "Cuti Sakit") {
-      const printWindow = window.open("", "_blank", "width=900,height=1000");
-      if (!printWindow) {
-        showToast("Popup diblokir browser. Izinkan popup untuk mencetak formulir Hakim.");
-        return;
-      }
-
-      // Memakai DOM Preview yang sama agar susunan PDF tidak berbeda dengan browser.
+    const isJudgeSickLeave =
+      (hasEmployeeRole(requestEmployee, "Hakim") ||
+        requestEmployee?.position.toLowerCase().includes("hakim") === true) &&
+      request.type === "Cuti Sakit";
+    if (isJudgeSickLeave) {
+      // PDF dibuat langsung dari dua halaman preview, tanpa membuka dialog cetak browser.
       setPdfPreview(request);
-      const printFromPreview = (attempt = 0) => {
+      const downloadJudgePdf = async (attempt = 0): Promise<void> => {
         const sheet = document.getElementById("judge-sick-leave-print");
         if (!sheet && attempt < 20) {
-          window.setTimeout(() => printFromPreview(attempt + 1), 50);
+          window.setTimeout(() => void downloadJudgePdf(attempt + 1), 50);
           return;
         }
         if (!sheet) {
-          printWindow.close();
           showToast("Preview formulir Hakim belum siap. Silakan coba lagi.");
           return;
         }
 
-        const styles = Array.from(
-          document.querySelectorAll('link[rel="stylesheet"], style'),
-        ).map((style) => style.outerHTML).join("\n");
-        printWindow.document.open();
-        printWindow.document.write(`<!doctype html>
-<html><head><base href="${window.location.origin}/">${styles}
-<style>
-  @page { size: A4 portrait; margin: 0; }
-  body { margin: 0; background: #fff; }
-  #judge-sick-leave-print { width: 210mm !important; }
-  #judge-sick-leave-print > div {
-    box-sizing: border-box !important;
-    width: 210mm !important;
-    height: 297mm !important;
-    min-width: 0 !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-    break-after: page;
-    page-break-after: always;
-  }
-  #judge-sick-leave-print > div > div {
-    box-sizing: border-box !important;
-    width: 186mm !important;
-    max-width: none !important;
-    min-width: 0 !important;
-    min-height: 0 !important;
-    height: 297mm !important;
-    margin: 0 auto !important;
-    padding: 10mm 12mm !important;
-    overflow: hidden !important;
-    border: 0 !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
-  }
-  #judge-sick-leave-print > div:nth-child(2) > div > div {
-    width: 100% !important;
-    height: auto !important;
-    min-width: 0 !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  /* Form lama lebih tinggi dari satu A4 pada ukuran layar. Skala cetak ini
-     mempertahankan seluruh kolom sampai keputusan pejabat di satu lembar. */
-  #judge-sick-leave-print > .scrollbar-soft:not(.judge-lampiran-iv-page) > div,
-  #judge-sick-leave-print > div:nth-child(2) > div > div {
-    zoom: 0.7;
-    width: 142.857% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    margin: 0 auto !important;
-    overflow: visible !important;
-  }
-</style></head><body>${sheet.outerHTML}<script>window.onload = () => { window.focus(); window.print(); }<\/script></body></html>`);
-        printWindow.document.close();
+        const { default: html2canvas } = await import("html2canvas");
+        const { jsPDF } = await import("jspdf");
+        const pages = Array.from(sheet.children).filter(
+          (node): node is HTMLElement => node instanceof HTMLElement,
+        );
+        const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4", compress: true });
+        const margin = 8;
+        const maxWidth = 210 - margin * 2;
+        const maxHeight = 297 - margin * 2;
+
+        for (const [index, page] of pages.entries()) {
+          const scrollContainer = page.classList.contains("scrollbar-soft")
+            ? page
+            : page.querySelector<HTMLElement>(":scope > .scrollbar-soft");
+          const printable = scrollContainer?.firstElementChild instanceof HTMLElement
+            ? scrollContainer.firstElementChild
+            : page;
+          const canvas = await html2canvas(printable, {
+            backgroundColor: "#ffffff",
+            scale: 2,
+            useCORS: true,
+            logging: false,
+          });
+          const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
+          const width = canvas.width * ratio;
+          const height = canvas.height * ratio;
+          if (index > 0) pdf.addPage();
+          pdf.addImage(
+            canvas.toDataURL("image/jpeg", 0.95),
+            "JPEG",
+            (210 - width) / 2,
+            margin,
+            width,
+            height,
+            undefined,
+            "FAST",
+          );
+        }
+        pdf.save(`${request.id}.pdf`);
       };
-      window.setTimeout(() => printFromPreview(), 0);
+      window.setTimeout(() => void downloadJudgePdf(), 0);
       return;
     }
 

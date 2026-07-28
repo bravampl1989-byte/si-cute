@@ -178,6 +178,13 @@ export async function GET(request: Request) {
                    ORDER BY pyb_approval.timestamp DESC, pyb_approval.id DESC
                    LIMIT 1
                  ) AS pyb_approved_at,
+                 (
+                   SELECT keputusan FROM approvals atasan_approval
+                   WHERE atasan_approval.request_id = r.id
+                     AND atasan_approval.tahapan = 'tingkat_1_atasan'
+                   ORDER BY atasan_approval.timestamp DESC, atasan_approval.id DESC
+                   LIMIT 1
+                 ) AS reviewer_decision,
                  ap.catatan
           FROM leave_requests r
           JOIN users u ON u.nip = r.nip
@@ -352,6 +359,11 @@ export async function GET(request: Request) {
         judgeAdminNote: row.judge_admin_note ? String(row.judge_admin_note) : null,
         judgeSupervisorNote: row.judge_supervisor_note
           ? String(row.judge_supervisor_note)
+          : null,
+        reviewerDecision: ["disetujui", "ditolak", "perbaikan"].includes(
+          String(row.reviewer_decision ?? ""),
+        )
+          ? String(row.reviewer_decision) as "disetujui" | "ditolak" | "perbaikan"
           : null,
         applicantPhone: String(row.no_whatsapp ?? ""),
         status: statusLabels[String(row.status)] ?? String(row.status),

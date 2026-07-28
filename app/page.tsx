@@ -96,6 +96,7 @@ type LeaveRequest = {
   judgeCertificateDate?: string | null;
   judgeAdminNote?: string | null;
   judgeSupervisorNote?: string | null;
+  reviewerDecision?: "disetujui" | "ditolak" | "perbaikan" | null;
   applicantPhone?: string;
   status: RequestStatus;
   reviewer: string;
@@ -6884,6 +6885,14 @@ function JudgeSickLeaveSheet({
   const certificateDate = request.judgeCertificateDate || "-";
   const reviewerSigned = request.status !== "Pending Atasan";
   const pybApproved = request.status === "Disetujui";
+  const supervisorDecisionLabel =
+    request.reviewerDecision === "disetujui"
+      ? "DISETUJUI"
+      : request.reviewerDecision === "ditolak"
+        ? "DITOLAK"
+        : request.reviewerDecision === "perbaikan"
+          ? "DITUNDA"
+          : "";
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
@@ -6935,10 +6944,13 @@ function JudgeSickLeaveSheet({
                   <p className="mt-3 whitespace-pre-wrap">{request.judgeAdminNote}</p>
                 ) : null}
               </td>
-              <td className="h-20 border border-black p-2 align-top">
+              <td className="h-28 border border-black p-2 align-top">
                 <p>Catatan/Pertimbangan Atasan Langsung:</p>
                 {request.judgeSupervisorNote ? (
                   <p className="mt-2 whitespace-pre-wrap">{request.judgeSupervisorNote}</p>
+                ) : null}
+                {!request.judgeSupervisorNote && supervisorDecisionLabel ? (
+                  <p className="mt-4 text-center font-bold">{supervisorDecisionLabel}</p>
                 ) : null}
                 {reviewerSigned && request.reviewerSignature && !request.judgeSupervisorNote ? (
                   // eslint-disable-next-line @next/next/no-img-element

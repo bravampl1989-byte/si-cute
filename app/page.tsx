@@ -6896,8 +6896,8 @@ function JudgeSickLeaveSheet({
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
       <div className="mx-auto min-h-[1120px] w-full min-w-[820px] max-w-[900px] bg-white px-16 py-10 text-[13px] leading-snug text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)]">
-        <div className="ml-auto mt-8 w-[330px]">
-          <p>Lampiran IV : Contoh Formulir</p>
+        <div className="ml-auto mt-8 w-[330px] translate-x-8">
+          <p>Lampiran IV</p>
           <p>Permintaan/Pemberian Cuti Sakit</p>
           <p>Peraturan Mahkamah Agung Nomor 7</p>
           <p>Tahun 2016 tentang Penegakan Disiplin</p>

@@ -2207,9 +2207,46 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         printWindow.document.write(`<!doctype html>
 <html><head><base href="${window.location.origin}/">${styles}
 <style>
-  @page { size: A4 portrait; margin: 12mm; }
+  @page { size: A4 portrait; margin: 0; }
   body { margin: 0; background: #fff; }
-  #judge-sick-leave-print { width: auto !important; min-width: 0 !important; max-width: none !important; min-height: 0 !important; box-shadow: none !important; }
+  #judge-sick-leave-print { width: 210mm !important; }
+  #judge-sick-leave-print > div {
+    box-sizing: border-box !important;
+    width: 210mm !important;
+    height: 297mm !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    break-after: page;
+    page-break-after: always;
+  }
+  #judge-sick-leave-print > div > div {
+    box-sizing: border-box !important;
+    width: 186mm !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 297mm !important;
+    margin: 0 auto !important;
+    padding: 10mm 12mm !important;
+    overflow: hidden !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  #judge-sick-leave-print > div:nth-child(2) > div > div {
+    width: 100% !important;
+    height: auto !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 </style></head><body>${sheet.outerHTML}<script>window.onload = () => { window.focus(); window.print(); }<\/script></body></html>`);
         printWindow.document.close();
       };
@@ -2378,7 +2415,6 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       if (employeeMark) {
         pdf.addImage(employeeMark, "PNG", 139.5, 208, 26, 12);
       }
-      pdf.text("Telah ditandatangani oleh", 152.5, 221, { align: "center" });
       pdf.setFont("helvetica", "bold");
       pdf.text(request.employee.toUpperCase(), 152.5, 224, { align: "center" });
       pdf.setFont("helvetica", "normal");
@@ -2400,7 +2436,6 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         if (reviewerMark) {
           pdf.addImage(reviewerMark, "PNG", 132, 262, 26, 7);
         }
-        pdf.text("Telah ditandatangani oleh", 145, 271, { align: "center" });
         pdf.setFont("helvetica", "bold");
         pdf.text(request.reviewer.toUpperCase(), 145, 274, { align: "center" });
       } else {
@@ -2529,7 +2564,6 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
     }
     pdf.text(
       [
-        "Telah ditandatangani oleh",
         request.employee.toUpperCase(),
         "NIP. " + request.nip,
       ],
@@ -2563,7 +2597,6 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       if (reviewerMark) {
         pdf.addImage(reviewerMark, "PNG", 137, 242, 26, 8);
       }
-      pdf.text("Telah ditandatangani oleh", 150, 252, { align: "center" });
       pdf.setFont("helvetica", "bold");
       pdf.text(request.reviewer.toUpperCase(), 150, 254.5, { align: "center" });
       pdf.setFont("helvetica", "normal");
@@ -2601,7 +2634,6 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       if (approverMark) {
         pdf.addImage(approverMark, "PNG", 137, 283, 26, 7);
       }
-      pdf.text("Telah ditandatangani oleh", 150, 291, { align: "center" });
       pdf.setFont("helvetica", "bold");
       pdf.text(request.approver.toUpperCase(), 150, 293, { align: "center" });
       pdf.setFont("helvetica", "normal");
@@ -6720,7 +6752,6 @@ function DispositionSheet({
                     )}
                   />
                 </div>
-                <p className="text-[9px]">Telah ditandatangani oleh</p>
                 <p className="font-bold">{request.employee.toUpperCase()}</p>
                 <p>NIP. {request.nip}</p>
               </td>
@@ -6781,7 +6812,6 @@ function DispositionSheet({
                         )}
                       />
                     </div>
-                    <p className="text-[9px]">Telah ditandatangani oleh</p>
                     <p className="font-bold">{request.reviewer.toUpperCase()}</p>
                     <p>NIP. {reviewerEmployee?.nip ?? "-"}</p>
                   </>
@@ -6847,7 +6877,6 @@ function DispositionSheet({
                         )}
                       />
                     </div>
-                    <p className="text-[9px]">Telah ditandatangani oleh</p>
                     <p className="font-bold">{request.approver.toUpperCase()}</p>
                     <p>NIP. {approverEmployee?.nip ?? "-"}</p>
                   </>
@@ -7176,7 +7205,6 @@ function PppkDispositionSheet({
                     )}
                   />
                 </div>
-                <p className="text-[9px]">Telah ditandatangani oleh</p>
                 <p className="font-bold">{request.employee.toUpperCase()}</p>
                 <p>NIP. {request.nip}</p>
               </td>
@@ -7218,7 +7246,6 @@ function PppkDispositionSheet({
                         )}
                       />
                     </div>
-                    <p className="text-[9px]">Telah ditandatangani oleh</p>
                     <p className="font-bold">{request.reviewer.toUpperCase()}</p>
                     <p>NIP. {reviewerEmployee?.nip ?? "-"}</p>
                   </>
@@ -7265,7 +7292,6 @@ function PppkDispositionSheet({
                         )}
                       />
                     </div>
-                    <p className="text-[9px]">Telah ditandatangani oleh</p>
                     <p className="font-bold">{request.approver.toUpperCase()}</p>
                     <p>NIP. {approverEmployee?.nip ?? "-"}</p>
                   </>

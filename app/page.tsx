@@ -2247,6 +2247,17 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
     margin: 0 !important;
     padding: 0 !important;
   }
+  /* Form lama lebih tinggi dari satu A4 pada ukuran layar. Skala cetak ini
+     mempertahankan seluruh kolom sampai keputusan pejabat di satu lembar. */
+  #judge-sick-leave-print > .scrollbar-soft:not(.judge-lampiran-iv-page) > div,
+  #judge-sick-leave-print > div:nth-child(2) > div > div {
+    zoom: 0.7;
+    width: 142.857% !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin: 0 auto !important;
+    overflow: visible !important;
+  }
 </style></head><body>${sheet.outerHTML}<script>window.onload = () => { window.focus(); window.print(); }<\/script></body></html>`);
         printWindow.document.close();
       };
@@ -6933,7 +6944,7 @@ function JudgeSickLeaveSheet({
           : "";
 
   return (
-    <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
+    <div className="judge-lampiran-iv-page scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
       <div className="mx-auto min-h-[1120px] w-full min-w-[820px] max-w-[900px] bg-white px-16 py-10 text-[13px] leading-snug text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)]">
         <div className="ml-auto mt-8 w-[330px] translate-x-8">
           <p>Lampiran IV</p>

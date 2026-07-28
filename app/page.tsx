@@ -6955,13 +6955,19 @@ function JudgeSickLeaveSheet({
               </td>
             </tr>
             <tr>
-              <td className="h-20 border border-black p-2 align-top">
+              <td className="h-28 border border-black p-2 align-top">
                 <p>Keputusan Pejabat yang berwenang memberikan cuti:</p>
                 {judgeDecisionLabel ? (
                   <p className="mt-5 text-center font-bold">{judgeDecisionLabel}</p>
-                ) : approverSigned && request.approverSignature ? (
+                ) : null}
+                {approverSigned && request.approverSignature ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img className="mx-auto mt-2 h-10 w-32 object-contain" src={request.approverSignature} alt={`Tanda tangan ${approverEmployee?.name ?? request.approver}`} />
+                ) : null}
+                {approverSigned ? (
+                  <p className="mt-1 text-center font-semibold">
+                    {approverEmployee?.name ?? request.approver}
+                  </p>
                 ) : null}
               </td>
             </tr>

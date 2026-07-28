@@ -378,7 +378,7 @@ function formatCurrentNonAnnualLeaveTotal(
     saldoAwal,
     totalBerjalan - request.days,
   );
-  return sebelumPengajuanIni > 0 ? String(sebelumPengajuanIni) : "";
+  return String(sebelumPengajuanIni);
 }
 
 function getNonAnnualLeaveTotalForRecap(

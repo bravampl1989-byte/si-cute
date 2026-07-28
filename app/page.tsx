@@ -6513,7 +6513,7 @@ function DispositionSheet({
   const usesLampiranIvJudgeForm =
     hasEmployeeRole(employee, "Hakim") &&
     request.type === "Cuti Sakit" &&
-    request.days < 14;
+    request.days <= 14;
 
   if (!forceStandard && hasEmployeeRole(employee, "Hakim") && request.type === "Cuti Sakit") {
     return (

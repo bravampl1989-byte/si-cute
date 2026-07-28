@@ -6457,10 +6457,12 @@ function DispositionSheet({
   request,
   employee,
   employees,
+  forceStandard = false,
 }: {
   request: LeaveRequest;
   employee?: AdminEmployee;
   employees: AdminEmployee[];
+  forceStandard?: boolean;
 }) {
   const leaveType = request.type.replace("Cuti ", "");
   const hasReviewerSignature = request.status !== "Pending Atasan";
@@ -6476,18 +6478,28 @@ function DispositionSheet({
     (item) => item.name === request.approver,
   );
 
-  if (hasEmployeeRole(employee, "Hakim") && request.type === "Cuti Sakit") {
+  if (!forceStandard && hasEmployeeRole(employee, "Hakim") && request.type === "Cuti Sakit") {
     return (
-      <JudgeSickLeaveSheet
-        request={request}
-        employee={employee}
-        reviewerEmployee={reviewerEmployee}
-        approverEmployee={approverEmployee}
-      />
+      <div id="judge-sick-leave-print">
+        <JudgeSickLeaveSheet
+          request={request}
+          employee={employee}
+          reviewerEmployee={reviewerEmployee}
+          approverEmployee={approverEmployee}
+        />
+        <div className="mt-6 break-before-page">
+          <DispositionSheet
+            request={request}
+            employee={employee}
+            employees={employees}
+            forceStandard
+          />
+        </div>
+      </div>
     );
   }
 
-  if (hasEmployeeRole(employee, "PPPK")) {
+  if (!forceStandard && hasEmployeeRole(employee, "PPPK")) {
     return (
       <PppkDispositionSheet
         request={request}
@@ -6883,7 +6895,7 @@ function JudgeSickLeaveSheet({
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
-      <div id="judge-sick-leave-print" className="mx-auto min-h-[1120px] w-full min-w-[820px] max-w-[900px] bg-white px-16 py-10 text-[13px] leading-snug text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)]">
+      <div className="mx-auto min-h-[1120px] w-full min-w-[820px] max-w-[900px] bg-white px-16 py-10 text-[13px] leading-snug text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)]">
         <div className="ml-auto mt-8 w-[330px]">
           <p>Lampiran IV : Contoh Formulir</p>
           <p>Permintaan/Pemberian Cuti Sakit</p>

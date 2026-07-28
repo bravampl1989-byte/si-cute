@@ -6883,15 +6883,7 @@ function JudgeSickLeaveSheet({
   const hospital = request.judgeHospitalName || "-";
   const certificateDate = request.judgeCertificateDate || "-";
   const reviewerSigned = request.status !== "Pending Atasan";
-  const approverSigned = ["Disetujui", "Ditolak"].includes(request.status);
-  const judgeDecisionLabel =
-    request.status === "Disetujui"
-      ? "SUDAH DISETUJUI"
-      : request.status === "Ditolak"
-        ? "TERTOLAK"
-        : request.status === "Perbaikan"
-          ? "TERTUNDA"
-          : "";
+  const pybApproved = request.status === "Disetujui";
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
@@ -6957,18 +6949,20 @@ function JudgeSickLeaveSheet({
             <tr>
               <td className="h-28 border border-black p-2 align-top">
                 <p>Keputusan Pejabat yang berwenang memberikan cuti:</p>
-                {judgeDecisionLabel ? (
-                  <p className="mt-5 text-center font-bold">{judgeDecisionLabel}</p>
-                ) : null}
-                {approverSigned && request.approverSignature ? (
+                {pybApproved && request.approverSignature ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img className="mx-auto mt-2 h-10 w-32 object-contain" src={request.approverSignature} alt={`Tanda tangan ${approverEmployee?.name ?? request.approver}`} />
                 ) : null}
-                {approverSigned ? (
+                {pybApproved ? (
                   <p className="mt-1 text-center font-semibold">
                     {approverEmployee?.name ?? request.approver}
                   </p>
-                ) : null}
+                ) : (
+                  <div className="mt-8 text-center">
+                    <p className="font-bold">DRAFT</p>
+                    <p className="mt-1 text-[10px]">Menunggu keputusan pejabat berwenang</p>
+                  </div>
+                )}
               </td>
             </tr>
           </tbody>

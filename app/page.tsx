@@ -6521,12 +6521,15 @@ function DispositionSheet({
   const approverEmployee = employees.find(
     (item) => item.name === request.approver,
   );
+  const isJudgeEmployee =
+    hasEmployeeRole(employee, "Hakim") ||
+    employee?.position.toLowerCase().includes("hakim") === true;
   const usesLampiranIvJudgeForm =
-    hasEmployeeRole(employee, "Hakim") &&
+    isJudgeEmployee &&
     request.type === "Cuti Sakit" &&
     request.days <= 14;
 
-  if (!forceStandard && hasEmployeeRole(employee, "Hakim") && request.type === "Cuti Sakit") {
+  if (!forceStandard && isJudgeEmployee && request.type === "Cuti Sakit") {
     return (
       <div id="judge-sick-leave-print">
         {usesLampiranIvJudgeForm ? (

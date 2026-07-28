@@ -6510,15 +6510,28 @@ function DispositionSheet({
   const approverEmployee = employees.find(
     (item) => item.name === request.approver,
   );
+  const usesLampiranIvJudgeForm =
+    hasEmployeeRole(employee, "Hakim") &&
+    request.type === "Cuti Sakit" &&
+    request.days < 14;
 
   if (!forceStandard && hasEmployeeRole(employee, "Hakim") && request.type === "Cuti Sakit") {
     return (
       <div id="judge-sick-leave-print">
-        <JudgeSickLeaveSheet
-          request={request}
-          employee={employee}
-          approverEmployee={approverEmployee}
-        />
+        {usesLampiranIvJudgeForm ? (
+          <JudgeSickLeaveSheet
+            request={request}
+            employee={employee}
+            approverEmployee={approverEmployee}
+          />
+        ) : (
+          <DispositionSheet
+            request={request}
+            employee={employee}
+            employees={employees}
+            forceStandard
+          />
+        )}
         <div className="mt-6 break-before-page">
           <DispositionSheet
             request={request}

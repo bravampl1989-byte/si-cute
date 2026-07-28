@@ -6485,7 +6485,6 @@ function DispositionSheet({
         <JudgeSickLeaveSheet
           request={request}
           employee={employee}
-          reviewerEmployee={reviewerEmployee}
           approverEmployee={approverEmployee}
         />
         <div className="mt-6 break-before-page">
@@ -6872,18 +6871,15 @@ function DispositionSheet({
 function JudgeSickLeaveSheet({
   request,
   employee,
-  reviewerEmployee,
   approverEmployee,
 }: {
   request: LeaveRequest;
   employee?: AdminEmployee;
-  reviewerEmployee?: AdminEmployee;
   approverEmployee?: AdminEmployee;
 }) {
   const diagnosis = request.judgeDiagnosis || request.reason;
   const hospital = request.judgeHospitalName || "-";
   const certificateDate = request.judgeCertificateDate || "-";
-  const reviewerSigned = request.status !== "Pending Atasan";
   const pybApproved = request.status === "Disetujui";
   const supervisorDecisionLabel =
     request.reviewerDecision === "disetujui"
@@ -6951,10 +6947,6 @@ function JudgeSickLeaveSheet({
                 ) : null}
                 {!request.judgeSupervisorNote && supervisorDecisionLabel ? (
                   <p className="mt-4 text-center font-bold">{supervisorDecisionLabel}</p>
-                ) : null}
-                {reviewerSigned && request.reviewerSignature && !request.judgeSupervisorNote ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img className="mx-auto mt-2 h-10 w-32 object-contain" src={request.reviewerSignature} alt={`Tanda tangan ${reviewerEmployee?.name ?? request.reviewer}`} />
                 ) : null}
               </td>
             </tr>

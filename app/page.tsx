@@ -6500,28 +6500,20 @@ function DispositionSheet({
   const isJudgeEmployee =
     hasEmployeeRole(employee, "Hakim") ||
     employee?.position.toLowerCase().includes("hakim") === true;
-  const usesLampiranIvJudgeForm =
+  const usesJudgeForm4A =
     isJudgeEmployee &&
     request.type === "Cuti Sakit" &&
-    request.days >= 15;
+    request.days <= 14;
 
   if (!forceStandard && isJudgeEmployee && request.type === "Cuti Sakit") {
     return (
       <div id="judge-sick-leave-print">
-        {usesLampiranIvJudgeForm ? (
-          <JudgeSickLeaveSheet
+        <JudgeSickLeaveSheet
+          variant={usesJudgeForm4A ? "4a" : "4b"}
             request={request}
             employee={employee}
             approverEmployee={approverEmployee}
           />
-        ) : (
-          <DispositionSheet
-            request={request}
-            employee={employee}
-            employees={employees}
-            forceStandard
-          />
-        )}
         <div className="mt-6 break-before-page">
           <DispositionSheet
             request={request}
@@ -6901,10 +6893,12 @@ function DispositionSheet({
 }
 
 function JudgeSickLeaveSheet({
+  variant,
   request,
   employee,
   approverEmployee,
 }: {
+  variant: "4a" | "4b";
   request: LeaveRequest;
   employee?: AdminEmployee;
   approverEmployee?: AdminEmployee;
@@ -6945,10 +6939,21 @@ function JudgeSickLeaveSheet({
         <p className="mt-4">
           Dengan ini mengajukan permintaan cuti sakit selama {request.days} hari,
           terhitung sejak {request.start} sampai dengan {request.end}, karena saya
-          menderita sakit <span className="font-semibold">{diagnosis}</span> sesuai
-          diagnosa Tim Penguji Kesehatan <span className="font-semibold">{hospital}</span>
-          , tertanggal <span className="font-semibold">{certificateDate}</span> yang saya
-          lampirkan bersama permintaan cuti ini.
+          menderita sakit <span className="font-semibold">{diagnosis}</span>{" "}
+          {variant === "4a" ? (
+            <>
+              sesuai Surat Keterangan Dokter tertanggal{" "}
+              <span className="font-semibold">{certificateDate}</span> yang saya
+              lampirkan bersama permintaan cuti ini.
+            </>
+          ) : (
+            <>
+              sesuai diagnosa Tim Penguji Kesehatan{" "}
+              <span className="font-semibold">{hospital}</span>, tertanggal{" "}
+              <span className="font-semibold">{certificateDate}</span> yang saya
+              lampirkan bersama permintaan cuti ini.
+            </>
+          )}
         </p>
         <p className="mt-6">
           Demikian surat ini saya buat dengan sebenar-benarnya untuk dipertimbangkan

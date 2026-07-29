@@ -6503,7 +6503,7 @@ function DispositionSheet({
   const usesLampiranIvJudgeForm =
     isJudgeEmployee &&
     request.type === "Cuti Sakit" &&
-    request.days >= 15;
+    request.days <= 14;
 
   if (!forceStandard && isJudgeEmployee && request.type === "Cuti Sakit") {
     return (

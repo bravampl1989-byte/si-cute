@@ -2266,11 +2266,12 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       "Disetujui",
       "Ditolak",
     ].includes(request.status);
-    const hasApproverSignature =
-      request.status === "Disetujui" || request.status === "Ditolak";
+    const hasAdminSignature = request.status !== "Pending Admin";
+    const hasApproverSignature = request.status === "Disetujui";
     const employeeMark = request.applicantSignature ?? manualSignatures[request.nip] ?? "";
-    const adminMark =
-      request.adminSignature ?? manualSignatures[adminEmployee?.nip ?? ""] ?? "";
+    const adminMark = hasAdminSignature
+      ? request.adminSignature ?? manualSignatures[adminEmployee?.nip ?? ""] ?? ""
+      : "";
     const reviewerMark = request.reviewerSignature ?? manualSignatures[reviewerEmployee?.nip ?? ""] ?? "";
     const approverMark =
       request.approverSignature ?? manualSignatures[approverEmployee?.nip ?? currentPybNip] ?? "";
@@ -6494,8 +6495,8 @@ function DispositionSheet({
     "Disetujui",
     "Ditolak",
   ].includes(request.status);
-  const hasApproverSignature =
-    request.status === "Disetujui" || request.status === "Ditolak";
+  const hasAdminSignature = request.status !== "Pending Admin";
+  const hasApproverSignature = request.status === "Disetujui";
   const isLeave = (value: string) =>
     value.toLowerCase().includes(leaveType.toLowerCase());
   const annualStatementRows = getAnnualQuotaStatementRows(employee, request);
@@ -6683,7 +6684,7 @@ function DispositionSheet({
               <PreviewLabel>Sisa</PreviewLabel>
               <PreviewLabel>Keterangan</PreviewLabel>
               <td className="border border-black p-1 align-middle" rowSpan={4}>
-                {request.adminSignature ? (
+                {hasAdminSignature && request.adminSignature ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     alt="Paraf Admin"
@@ -7039,8 +7040,8 @@ function PppkDispositionSheet({
     "Disetujui",
     "Ditolak",
   ].includes(request.status);
-  const hasApproverSignature =
-    request.status === "Disetujui" || request.status === "Ditolak";
+  const hasAdminSignature = request.status !== "Pending Admin";
+  const hasApproverSignature = request.status === "Disetujui";
   const reviewerEmployee = employees.find(
     (item) => item.name === request.reviewer,
   );
@@ -7168,7 +7169,7 @@ function PppkDispositionSheet({
                 <PreviewCell>{quota.note}</PreviewCell>
                 {index === 0 ? (
                   <td className="border border-black p-1 align-middle" rowSpan={5}>
-                    {request.adminSignature ? (
+                    {hasAdminSignature && request.adminSignature ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         alt="Paraf Admin"

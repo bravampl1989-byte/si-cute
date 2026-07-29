@@ -2261,7 +2261,11 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       requestEmployee,
       request,
     );
-    const hasReviewerSignature = request.status !== "Pending Atasan";
+    const hasReviewerSignature = [
+      "Pending Pejabat",
+      "Disetujui",
+      "Ditolak",
+    ].includes(request.status);
     const hasApproverSignature =
       request.status === "Disetujui" || request.status === "Ditolak";
     const employeeMark = request.applicantSignature ?? manualSignatures[request.nip] ?? "";
@@ -6485,7 +6489,11 @@ function DispositionSheet({
   forceStandard?: boolean;
 }) {
   const leaveType = request.type.replace("Cuti ", "");
-  const hasReviewerSignature = request.status !== "Pending Atasan";
+  const hasReviewerSignature = [
+    "Pending Pejabat",
+    "Disetujui",
+    "Ditolak",
+  ].includes(request.status);
   const hasApproverSignature =
     request.status === "Disetujui" || request.status === "Ditolak";
   const isLeave = (value: string) =>
@@ -7026,7 +7034,11 @@ function PppkDispositionSheet({
   const isLeave = (value: string) =>
     value.toLowerCase().includes(leaveType.toLowerCase());
   const annualStatementRows = getAnnualQuotaStatementRows(employee, request);
-  const hasReviewerSignature = request.status !== "Pending Atasan";
+  const hasReviewerSignature = [
+    "Pending Pejabat",
+    "Disetujui",
+    "Ditolak",
+  ].includes(request.status);
   const hasApproverSignature =
     request.status === "Disetujui" || request.status === "Ditolak";
   const reviewerEmployee = employees.find(

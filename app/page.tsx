@@ -5921,7 +5921,13 @@ function ActionDialog({
   const buildEmployee = (): AdminEmployee | undefined => {
     if (!isEmployeeForm) return undefined;
 
-    const nextCurrentRemaining = clampNumber(currentRemaining, 0, 12);
+    // The current-year balance can be corrected manually by the administrator.
+    // The annual rollover still creates the following year's fresh quota separately.
+    const nextCurrentRemaining = clampNumber(
+      currentRemaining,
+      0,
+      Number.MAX_SAFE_INTEGER,
+    );
     const nextPreviousRemaining = clampNumber(previousRemaining, 0, 6);
     const nextOlderRemaining = clampNumber(olderRemaining, 0, 6);
     const nextServiceYears = clampNumber(serviceYears, 0, 50);
@@ -6217,10 +6223,13 @@ function ActionDialog({
                 id="current-leave-remaining"
                 type="number"
                 min="0"
-                max="12"
                 value={currentRemaining}
                 onChange={(event) => setCurrentRemaining(event.target.value)}
               />
+              <p className="text-xs text-muted-foreground">
+                Dapat diisi manual. Pada awal tahun, kuota tahun berjalan baru tetap
+                dibuat otomatis sesuai aturan rollover.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="previous-leave-remaining">

@@ -142,6 +142,13 @@ export async function PUT(request: Request) {
     if (!body.nip?.trim() || !body.name?.trim()) {
       return NextResponse.json({ error: "Nama dan NIP wajib diisi." }, { status: 400 });
     }
+    const nextPassword = body.accountPassword?.trim() ?? "";
+    if (nextPassword && nextPassword.length < 6) {
+      return NextResponse.json(
+        { error: "Kata sandi baru minimal 6 karakter." },
+        { status: 400 },
+      );
+    }
     const roles = Array.from(new Set((body.roles?.length ? body.roles : [body.role ?? "Pegawai"])
       .map((role) => roleCodes[role]).filter(Boolean)));
     const primaryRole = roles[0] ?? "pegawai";

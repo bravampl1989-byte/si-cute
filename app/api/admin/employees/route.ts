@@ -91,6 +91,14 @@ export async function POST(request: Request) {
     const primaryRole = roles[0] ?? "pegawai";
     const supervisor = body.supervisor && body.supervisor !== "-" ? body.supervisor : null;
     const approver = body.approver && body.approver !== "-" ? body.approver : null;
+    const nextPassword = body.accountPassword?.trim() ?? "";
+
+    if (nextPassword && nextPassword.length < 6) {
+      return NextResponse.json(
+        { error: "Kata sandi baru minimal 6 karakter." },
+        { status: 400 },
+      );
+    }
     const passwordHash = await bcrypt.hash(body.accountPassword, 10);
 
     await db.run(sql`
@@ -153,6 +161,15 @@ export async function PUT(request: Request) {
         masa_kerja_per = ${body.serviceAsOf ?? new Date().toISOString().slice(0, 7)}
       WHERE nip = ${body.nip.trim()}
     `);
+    // An empty password means the administrator is only editing profile data.
+    // Only replace the stored hash when a new password was deliberately supplied.
+    if (nextPassword) {
+      const passwordHash = await bcrypt.hash(nextPassword, 10);
+      await db.run(sql`
+        UPDATE users SET password_hash = ${passwordHash}
+        WHERE nip = ${body.nip.trim()}
+      `);
+    }
     await db.run(sql`DELETE FROM user_roles WHERE nip = ${body.nip.trim()}`);
     for (const role of roles) {
       await db.run(sql`INSERT INTO user_roles (nip, peran) VALUES (${body.nip.trim()}, ${role})`);

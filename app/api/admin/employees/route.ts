@@ -51,11 +51,30 @@ const roleCodes: Record<string, string> = {
 type EmployeePayload = {
   nip?: string; name?: string; role?: string; roles?: string[];
   position?: string; grade?: string; serviceYears?: number; serviceMonths?: number;
-  serviceAsOf?: string; supervisor?: string; approver?: string;
+  serviceAsOf?: string; supervisor?: string; supervisorNip?: string;
+  approver?: string; approverNip?: string;
   whatsappNumber?: string; accountPassword?: string;
   quotas?: Array<{ year: number; remaining: number }>;
   nonAnnualLeaves?: Array<{ type: NonAnnualLeaveType; days: number }>;
 };
+
+/**
+ * The form may submit a display label (for example "SUGIARTO - NIP ...")
+ * or a raw NIP.  Resolve both forms before saving the employee routing.
+ */
+async function resolveUserNip(reference?: string) {
+  const value = reference?.trim();
+  if (!value || value === "-") return null;
+
+  const nipInLabel = value.match(/\b\d{18}\b/)?.[0];
+  const rows = await db.all<{ nip: string }>(sql`
+    SELECT nip
+    FROM users
+    WHERE nip = ${nipInLabel ?? value} OR nama = ${value}
+    LIMIT 1
+  `);
+  return rows[0]?.nip ?? null;
+}
 
 async function saveNonAnnualLeaves(nip: string, leaves: EmployeePayload["nonAnnualLeaves"]) {
   await ensureEmployeeNonAnnualLeaves();
@@ -89,8 +108,8 @@ export async function POST(request: Request) {
     const roles = Array.from(new Set((body.roles?.length ? body.roles : [body.role ?? "Pegawai"])
       .map((role) => roleCodes[role]).filter(Boolean)));
     const primaryRole = roles[0] ?? "pegawai";
-    const supervisor = body.supervisor && body.supervisor !== "-" ? body.supervisor : null;
-    const approver = body.approver && body.approver !== "-" ? body.approver : null;
+    const supervisor = await resolveUserNip(body.supervisorNip ?? body.supervisor);
+    const approver = await resolveUserNip(body.approverNip ?? body.approver);
     const nextPassword = body.accountPassword?.trim() ?? "";
 
     if (nextPassword && nextPassword.length < 6) {
@@ -107,8 +126,7 @@ export async function POST(request: Request) {
         jabatan, golongan_ruang, masa_kerja_tahun, masa_kerja_bulan, masa_kerja_per, aktif
       ) VALUES (
         ${nip}, ${passwordHash}, ${name}, ${primaryRole}, ${body.whatsappNumber?.trim() ?? ""},
-        (SELECT nip FROM users WHERE nama = ${supervisor} LIMIT 1),
-        (SELECT nip FROM users WHERE nama = ${approver} LIMIT 1),
+        ${supervisor}, ${approver},
         ${body.position?.trim() ?? "Pelaksana"}, ${body.grade?.trim() ?? ""},
         ${Number(body.serviceYears ?? 0)}, ${Number(body.serviceMonths ?? 0)},
         ${body.serviceAsOf ?? new Date().toISOString().slice(0, 7)}, 1
@@ -152,15 +170,15 @@ export async function PUT(request: Request) {
     const roles = Array.from(new Set((body.roles?.length ? body.roles : [body.role ?? "Pegawai"])
       .map((role) => roleCodes[role]).filter(Boolean)));
     const primaryRole = roles[0] ?? "pegawai";
-    const supervisor = body.supervisor && body.supervisor !== "-" ? body.supervisor : null;
-    const approver = body.approver && body.approver !== "-" ? body.approver : null;
+    const supervisor = await resolveUserNip(body.supervisorNip ?? body.supervisor);
+    const approver = await resolveUserNip(body.approverNip ?? body.approver);
 
     await db.run(sql`
       UPDATE users SET
         nama = ${body.name.trim()}, peran = ${primaryRole},
         no_whatsapp = ${body.whatsappNumber?.trim() ?? ""},
-        atasan_nip = (SELECT nip FROM users WHERE nama = ${supervisor} LIMIT 1),
-        pejabat_nip = (SELECT nip FROM users WHERE nama = ${approver} LIMIT 1),
+        atasan_nip = ${supervisor},
+        pejabat_nip = ${approver},
         jabatan = ${body.position?.trim() ?? "Pelaksana"},
         golongan_ruang = ${body.grade?.trim() ?? ""},
         masa_kerja_tahun = ${Number(body.serviceYears ?? 0)},

@@ -170,6 +170,7 @@ export async function GET(request: Request) {
                  jssn.note AS judge_supervisor_note,
                  r.created_at, u.nama, u.no_whatsapp, u.masa_kerja_tahun, u.masa_kerja_bulan,
                  COALESCE(a.nama, '-') AS atasan_nama,
+                 COALESCE(p.nama, 'Pejabat Berwenang') AS pejabat_nama,
                  (
                    SELECT timestamp FROM approvals pyb_approval
                    WHERE pyb_approval.request_id = r.id
@@ -192,6 +193,7 @@ export async function GET(request: Request) {
           LEFT JOIN judge_sick_leave_admin_notes jsan ON jsan.request_id = r.id
           LEFT JOIN judge_sick_leave_supervisor_notes jssn ON jssn.request_id = r.id
           LEFT JOIN users a ON a.nip = u.atasan_nip
+          LEFT JOIN users p ON p.nip = u.pejabat_nip
           LEFT JOIN (
             SELECT request_id, catatan
             FROM (
@@ -211,13 +213,6 @@ export async function GET(request: Request) {
       },
       {
         sql: `
-          SELECT nip, nama FROM users
-          WHERE aktif = 1 AND peran = 'pejabat_berwenang'
-          ORDER BY nama LIMIT 1
-        `,
-      },
-      {
-        sql: `
           SELECT signatures.request_id, signatures.role, signatures.signature_data
           FROM request_signatures signatures
           JOIN leave_requests r ON r.id = signatures.request_id
@@ -227,7 +222,7 @@ export async function GET(request: Request) {
         args: requestScope.args,
       },
     ], "read");
-    const [employeeRows, roleRows, quotaRows, nonAnnualLeaveRows, requestRows, pybRows, signatureRows] = results.map(
+    const [employeeRows, roleRows, quotaRows, nonAnnualLeaveRows, requestRows, signatureRows] = results.map(
       (result) => result.rows as unknown as Row[],
     );
 
@@ -329,7 +324,6 @@ export async function GET(request: Request) {
 
     const signatures = new Map<string, Record<string, string>>();
     for (const row of signatureRows) signatures.set(String(row.request_id), { ...(signatures.get(String(row.request_id)) ?? {}), [String(row.role)]: String(row.signature_data) });
-    const pybName = String(pybRows[0]?.nama ?? "Pejabat Berwenang");
     const requests = requestRows.map((row) => {
       const createdAt = String(row.created_at ?? "");
       const year = new Date(createdAt).getFullYear() || new Date().getFullYear();
@@ -368,7 +362,7 @@ export async function GET(request: Request) {
         applicantPhone: String(row.no_whatsapp ?? ""),
         status: statusLabels[String(row.status)] ?? String(row.status),
         reviewer: String(row.atasan_nama ?? "-"),
-        approver: pybName,
+        approver: String(row.pejabat_nama ?? "Pejabat Berwenang"),
         note: String(row.catatan ?? "Data langsung dari Turso"),
         attachmentName: row.lampiran_url ? "Dokumen pendukung pengajuan" : null,
         attachmentType: row.lampiran_url

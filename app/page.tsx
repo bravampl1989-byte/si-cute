@@ -1139,8 +1139,16 @@ function HomeContent() {
   const pybEmployee = adminEmployees.find((employee) =>
     getEmployeeRoles(employee).includes("Pejabat Berwenang"),
   );
-  const currentPybName = pybEmployee?.name ?? "Pejabat Berwenang";
-  const currentPybNip = pybEmployee?.nip ?? "-";
+  // Each employee (including PPPK) can have a different Pejabat Berwenang.
+  // Use the account's saved routing first; the global PyB is only a fallback.
+  const currentPybName =
+    accountEmployee?.approver && accountEmployee.approver !== "-"
+      ? accountEmployee.approver
+      : pybEmployee?.name ?? "Pejabat Berwenang";
+  const currentPybNip =
+    adminEmployees.find((employee) => employee.name === currentPybName)?.nip ??
+    pybEmployee?.nip ??
+    "-";
   const employeeRequests = requests.filter(
     (request) => request.nip === accountNip,
   );

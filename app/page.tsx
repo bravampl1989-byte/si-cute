@@ -101,6 +101,7 @@ type LeaveRequest = {
   status: RequestStatus;
   reviewer: string;
   approver: string;
+  approverNip?: string | null;
   note: string;
   attachmentName?: string | null;
   attachmentType?: string | null;
@@ -306,6 +307,7 @@ type AdminEmployee = {
   serviceAsOf: string;
   supervisor: string;
   approver?: string;
+  approverNip?: string | null;
   quotas: { year: number; remaining: number; used: number }[];
   nonAnnualLeaves?: {
     type: "besar" | "sakit" | "melahirkan" | "alasan_penting" | "di_luar_tanggungan_negara";
@@ -1146,6 +1148,7 @@ function HomeContent() {
       ? accountEmployee.approver
       : pybEmployee?.name ?? "Pejabat Berwenang";
   const currentPybNip =
+    accountEmployee?.approverNip ??
     adminEmployees.find((employee) => employee.name === currentPybName)?.nip ??
     pybEmployee?.nip ??
     "-";
@@ -1231,6 +1234,7 @@ function HomeContent() {
       status: "Pending Atasan",
       reviewer: accountSupervisor,
       approver: currentPybName,
+      approverNip: currentPybNip,
       note: "Belum ada pengajuan cuti.",
     };
   useEffect(() => {

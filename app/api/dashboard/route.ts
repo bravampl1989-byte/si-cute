@@ -313,6 +313,7 @@ export async function GET(request: Request) {
         ).slice(0, 7),
         supervisor: String(row.atasan_nama ?? "-"),
         approver: String(row.pejabat_nama ?? "Pejabat Berwenang"),
+        approverNip: row.pejabat_nip ? String(row.pejabat_nip) : null,
         quotas: quotasByNip.get(nip) ?? [],
         nonAnnualLeaves: nonAnnualLeavesByNip.get(nip) ?? [],
         nonAnnualLeaveBase: nonAnnualLeaveBaseByNip.get(nip) ?? [],
@@ -363,6 +364,7 @@ export async function GET(request: Request) {
         status: statusLabels[String(row.status)] ?? String(row.status),
         reviewer: String(row.atasan_nama ?? "-"),
         approver: String(row.pejabat_nama ?? "Pejabat Berwenang"),
+        approverNip: row.pejabat_nip ? String(row.pejabat_nip) : null,
         note: String(row.catatan ?? "Data langsung dari Turso"),
         attachmentName: row.lampiran_url ? "Dokumen pendukung pengajuan" : null,
         attachmentType: row.lampiran_url

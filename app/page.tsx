@@ -7258,13 +7258,14 @@ function PppkDispositionSheet({
             <tr>
               <PreviewSectionTitle
                 title="VII. PERTIMBANGAN ATASAN LANGSUNG"
-                colSpan={3}
+                colSpan={4}
               />
             </tr>
             <tr>
               <PreviewLabel align="center">DISETUJUI</PreviewLabel>
               <PreviewLabel align="center">PERUBAHAN</PreviewLabel>
               <PreviewLabel align="center">DITANGGUHKAN</PreviewLabel>
+              <PreviewLabel align="center">TIDAK DISETUJUI</PreviewLabel>
             </tr>
             <tr>
               <PreviewCell align="center">
@@ -7276,10 +7277,13 @@ function PppkDispositionSheet({
                 {request.status === "Perbaikan" ? "✓" : ""}
               </PreviewCell>
               <PreviewCell align="center" />
+              <PreviewCell align="center">
+                {request.status === "Ditolak" ? "✓" : ""}
+              </PreviewCell>
             </tr>
             <tr>
-              <td className="h-24 border-y border-l border-black" />
-              <td className="border-y border-r border-black p-2 text-center align-top" colSpan={2}>
+              <td className="h-24 border border-black" colSpan={2} />
+              <td className="border border-black p-2 text-center align-top" colSpan={2}>
                 {hasReviewerSignature ? (
                   <>
                     <div className="my-2 flex justify-center">
@@ -7308,13 +7312,14 @@ function PppkDispositionSheet({
             <tr>
               <PreviewSectionTitle
                 title="VIII. KEPUTUSAN PEJABAT YANG BERWENANG MEMBERIKAN CUTI"
-                colSpan={3}
+                colSpan={4}
               />
             </tr>
             <tr>
               <PreviewLabel align="center">DISETUJUI</PreviewLabel>
               <PreviewLabel align="center">PERUBAHAN</PreviewLabel>
               <PreviewLabel align="center">DITANGGUHKAN</PreviewLabel>
+              <PreviewLabel align="center">TIDAK DISETUJUI</PreviewLabel>
             </tr>
             <tr>
               <PreviewCell align="center">
@@ -7322,10 +7327,13 @@ function PppkDispositionSheet({
               </PreviewCell>
               <PreviewCell align="center" />
               <PreviewCell align="center" />
+              <PreviewCell align="center">
+                {request.status === "Ditolak" ? "✓" : ""}
+              </PreviewCell>
             </tr>
             <tr>
-              <td className="h-24 border-y border-l border-black" />
-              <td className="border-y border-r border-black p-2 text-center align-top" colSpan={2}>
+              <td className="h-24 border border-black" colSpan={2} />
+              <td className="border border-black p-2 text-center align-top" colSpan={2}>
                 {hasApproverSignature ? (
                   <>
                     <div className="my-2 flex justify-center">

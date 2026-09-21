@@ -7278,8 +7278,8 @@ function PppkDispositionSheet({
               <PreviewCell align="center" />
             </tr>
             <tr>
-              <td className="h-24 border border-black" />
-              <td className="border border-black p-2 text-center align-top" colSpan={2}>
+              <td className="h-24 border-y border-l border-black" />
+              <td className="border-y border-r border-black p-2 text-center align-top" colSpan={2}>
                 {hasReviewerSignature ? (
                   <>
                     <div className="my-2 flex justify-center">
@@ -7324,8 +7324,8 @@ function PppkDispositionSheet({
               <PreviewCell align="center" />
             </tr>
             <tr>
-              <td className="h-24 border border-black" />
-              <td className="border border-black p-2 text-center align-top" colSpan={2}>
+              <td className="h-24 border-y border-l border-black" />
+              <td className="border-y border-r border-black p-2 text-center align-top" colSpan={2}>
                 {hasApproverSignature ? (
                   <>
                     <div className="my-2 flex justify-center">

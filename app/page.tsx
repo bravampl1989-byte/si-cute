@@ -7255,6 +7255,18 @@ function PppkDispositionSheet({
                 <p>NIP. {request.nip}</p>
               </td>
             </tr>
+          </tbody>
+        </table>
+
+        <PreviewSpacer />
+        <table className="w-full table-fixed border-collapse border border-black">
+          <colgroup>
+            <col className="w-1/4" />
+            <col className="w-1/4" />
+            <col className="w-1/4" />
+            <col className="w-1/4" />
+          </colgroup>
+          <tbody>
             <tr>
               <PreviewSectionTitle
                 title="VII. PERTIMBANGAN ATASAN LANGSUNG"

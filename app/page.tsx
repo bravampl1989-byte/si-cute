@@ -2266,9 +2266,11 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
     const adminEmployee = adminEmployees.find((employee) =>
       hasEmployeeRole(employee, "Admin Pembuat Daftar Cuti"),
     );
-    const approverEmployee = adminEmployees.find(
-      (employee) => employee.name === request.approver,
-    );
+    const isPppkRequest = hasEmployeeRole(requestEmployee, "PPPK");
+    const approverEmployee = isPppkRequest
+      ? adminEmployees.find((employee) => employee.nip === request.approverNip) ??
+        adminEmployees.find((employee) => employee.name === request.approver)
+      : adminEmployees.find((employee) => employee.name === request.approver);
     const annualStatementRows = getAnnualQuotaStatementRows(
       requestEmployee,
       request,
@@ -2642,7 +2644,9 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       pdf.text(request.approver.toUpperCase(), 150, 293, { align: "center" });
       pdf.setFont("helvetica", "normal");
       pdf.text(
-        `NIP. ${request.approver === currentPybName ? currentPybNip : "-"}`,
+        `NIP. ${isPppkRequest
+          ? approverEmployee?.nip ?? request.approverNip ?? "-"
+          : request.approver === currentPybName ? currentPybNip : "-"}`,
         150,
         295,
         { align: "center" },
@@ -7067,8 +7071,8 @@ function PppkDispositionSheet({
     (item) => item.name === request.reviewer,
   );
   const approverEmployee = employees.find(
-    (item) => item.name === request.approver,
-  );
+    (item) => item.nip === request.approverNip,
+  ) ?? employees.find((item) => item.name === request.approver);
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
@@ -7330,12 +7334,12 @@ function PppkDispositionSheet({
                         code={buildVerificationPayload(
                           request,
                           request.approver.toUpperCase(),
-                          approverEmployee?.nip ?? "-",
+                          approverEmployee?.nip ?? request.approverNip ?? "-",
                         )}
                       />
                     </div>
                     <p className="font-bold">{request.approver.toUpperCase()}</p>
-                    <p>NIP. {approverEmployee?.nip ?? "-"}</p>
+                    <p>NIP. {approverEmployee?.nip ?? request.approverNip ?? "-"}</p>
                   </>
                 ) : (
                   <div className="mt-6">

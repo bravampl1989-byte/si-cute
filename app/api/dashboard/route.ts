@@ -169,6 +169,7 @@ export async function GET(request: Request) {
                  jsan.note AS judge_admin_note,
                  jssn.note AS judge_supervisor_note,
                  r.created_at, u.nama, u.no_whatsapp, u.masa_kerja_tahun, u.masa_kerja_bulan,
+                 u.pejabat_nip,
                  COALESCE(a.nama, '-') AS atasan_nama,
                  COALESCE(p.nama, 'Pejabat Berwenang') AS pejabat_nama,
                  (

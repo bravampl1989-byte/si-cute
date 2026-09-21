@@ -227,8 +227,19 @@ export async function POST(request: Request) {
       });
     }
     if (body.signature) await saveRequestSignature(requestId, "pemohon", body.nip, body.signature);
-    const applicant = await db.all<{ nama: string }>(sql`
-      SELECT nama FROM users WHERE nip = ${body.nip} LIMIT 1
+    const applicant = await db.all<{
+      nama: string;
+      noWhatsapp: string;
+      isPppk: number;
+    }>(sql`
+      SELECT u.nama, u.no_whatsapp AS noWhatsapp,
+             CASE WHEN u.peran = 'pppk' OR EXISTS (
+               SELECT 1 FROM user_roles ur
+               WHERE ur.nip = u.nip AND ur.peran = 'pppk'
+             ) THEN 1 ELSE 0 END AS isPppk
+      FROM users u
+      WHERE u.nip = ${body.nip}
+      LIMIT 1
     `);
     const admins = await db.all<{
       nip: string;
@@ -258,19 +269,40 @@ export async function POST(request: Request) {
       : "";
     const message = `📋 *Pengajuan Cuti Baru Menunggu Verifikasi Admin*\n\nPegawai: ${applicant[0]?.nama ?? body.nip}\nNIP: ${body.nip}\nJenis cuti: ${body.type}\nTanggal: ${body.startDate} s/d ${body.endDate}\nDurasi: ${workingDays} hari kerja${totalLine}${judgeSickLeaveLine}\n\nSilakan buka SI CUTE untuk memeriksa dokumen dan mengisi nomor surat dengan link https://sicute.pa-sampang.go.id/.`;
 
+    // PPPK follows the same Admin-verification route as Pegawai.  In
+    // addition, send the PPPK applicant a delivery confirmation so both
+    // sides know that the request has entered the Admin queue.
+    const notificationRecipients = [
+      ...admins.map((admin) => ({
+        nip: admin.nip,
+        noWhatsapp: admin.noWhatsapp,
+        message,
+      })),
+      ...(Number(applicant[0]?.isPppk ?? 0) === 1 && applicant[0]?.noWhatsapp
+        ? [{
+            nip: body.nip,
+            noWhatsapp: applicant[0].noWhatsapp,
+            message: `📋 *Pengajuan Cuti Berhasil Dikirim*\n\nPengajuan ${leaveTypeLabels[type]} Anda telah masuk ke antrean Verifikasi Admin.\nTanggal: ${body.startDate} s/d ${body.endDate}\nDurasi: ${workingDays} hari kerja\n\nSilakan pantau status pengajuan melalui SI CUTE dengan link https://sicute.pa-sampang.go.id/.`,
+          }]
+        : []),
+    ].filter(
+      (recipient, index, all) =>
+        all.findIndex((candidate) => candidate.nip === recipient.nip) === index,
+    );
+
     await Promise.all(
-      admins.map(async (admin) => {
+      notificationRecipients.map(async (recipient) => {
         try {
           const result = await sendWhatsApp({
-            to: admin.noWhatsapp,
-            message,
+            to: recipient.noWhatsapp,
+            message: recipient.message,
           });
           await db.run(sql`
             INSERT INTO whatsapp_logs
               (request_id, target_nip, no_whatsapp, provider, message, status, provider_message_id, error, created_at)
             VALUES
-              (${requestId}, ${admin.nip}, ${admin.noWhatsapp},
-               ${result.provider}, ${message}, ${result.ok ? "sent" : "failed"},
+              (${requestId}, ${recipient.nip}, ${recipient.noWhatsapp},
+               ${result.provider}, ${recipient.message}, ${result.ok ? "sent" : "failed"},
                ${result.providerMessageId ?? null}, ${result.error ?? null}, CURRENT_TIMESTAMP)
           `);
         } catch (whatsappError) {
@@ -278,8 +310,8 @@ export async function POST(request: Request) {
             INSERT INTO whatsapp_logs
               (request_id, target_nip, no_whatsapp, provider, message, status, error, created_at)
             VALUES
-              (${requestId}, ${admin.nip}, ${admin.noWhatsapp},
-               'fonnte', ${message}, 'failed',
+              (${requestId}, ${recipient.nip}, ${recipient.noWhatsapp},
+               'fonnte', ${recipient.message}, 'failed',
                ${whatsappError instanceof Error ? whatsappError.message : "WhatsApp gagal dikirim"}, CURRENT_TIMESTAMP)
           `);
         }

@@ -2253,6 +2253,58 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       return;
     }
 
+    if (hasEmployeeRole(requestEmployee, "PPPK")) {
+      // The PPPK PDF is rendered from its preview sheet so the downloaded
+      // document always has the same table layout as the on-screen form.
+      setPdfPreview(request);
+      const downloadPppkPdf = async (attempt = 0): Promise<void> => {
+        const sheet = document.getElementById("pppk-leave-print");
+        if (!sheet && attempt < 20) {
+          window.setTimeout(() => void downloadPppkPdf(attempt + 1), 50);
+          return;
+        }
+        if (!sheet) {
+          showToast("Preview formulir PPPK belum siap. Silakan coba lagi.");
+          return;
+        }
+
+        const { default: html2canvas } = await import("html2canvas");
+        const { jsPDF } = await import("jspdf");
+        const canvas = await html2canvas(sheet, {
+          backgroundColor: "#ffffff",
+          scale: 2,
+          useCORS: true,
+          logging: false,
+        });
+        const pdf = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4",
+          compress: true,
+        });
+        const margin = 5;
+        const maxWidth = 210 - margin * 2;
+        const maxHeight = 297 - margin * 2;
+        const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
+        const width = canvas.width * ratio;
+        const height = canvas.height * ratio;
+        pdf.addImage(
+          canvas.toDataURL("image/jpeg", 0.95),
+          "JPEG",
+          (210 - width) / 2,
+          (297 - height) / 2,
+          width,
+          height,
+          undefined,
+          "FAST",
+        );
+        pdf.save(`${request.id}.pdf`);
+        showToast(`PDF ${request.id} berhasil diunduh.`);
+      };
+      window.setTimeout(() => void downloadPppkPdf(), 0);
+      return;
+    }
+
     const { jsPDF } = await import("jspdf");
     const pdf = new jsPDF({
       orientation: "portrait",
@@ -7076,7 +7128,7 @@ function PppkDispositionSheet({
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
-      <div className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)]">
+      <div id="pppk-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)]">
         <div className="mb-6 grid grid-cols-2">
           <span />
           <div className="justify-self-end pr-10">

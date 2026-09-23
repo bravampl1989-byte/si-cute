@@ -7128,7 +7128,7 @@ function PppkDispositionSheet({
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
-      <div id="pppk-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)]">
+      <div id="pppk-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-[7.5rem] [&_[data-signature-mark]]:!w-48 [&_[data-signature-mark]_img]:!scale-[1.5]">
         <div className="mb-6 grid grid-cols-2">
           <span />
           <div className="justify-self-end pr-10">
@@ -7620,7 +7620,7 @@ function QrVerificationMark({ code, signature }: { code: string; signature?: str
   }, [code, signature]);
 
   return (
-    <div className="flex h-40 w-64 items-center justify-center overflow-hidden bg-white p-1">
+    <div data-signature-mark className="flex h-40 w-64 items-center justify-center overflow-hidden bg-white p-1">
       {imageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img

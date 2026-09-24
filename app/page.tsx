@@ -2280,11 +2280,16 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           onclone: (clonedDocument) => {
             const clonedSheet = clonedDocument.getElementById("pppk-leave-print");
             clonedSheet?.querySelectorAll<HTMLElement>("[data-signature-mark]").forEach((mark) => {
-              mark.style.setProperty("height", "3.9rem", "important");
-              mark.style.setProperty("width", "6.24rem", "important");
+              mark.style.setProperty("height", "4.875rem", "important");
+              mark.style.setProperty("width", "7.8rem", "important");
               mark.querySelector<HTMLElement>("img")?.style.setProperty(
                 "transform",
-                "scale(0.78)",
+                "scale(0.975)",
+                "important",
+              );
+              mark.querySelector<HTMLElement>("img")?.style.setProperty(
+                "filter",
+                "contrast(1.6) drop-shadow(0 0 0.45px #111827)",
                 "important",
               );
             });
@@ -7210,7 +7215,7 @@ function PppkDispositionSheet({
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
-      <div id="pppk-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-[3.9rem] [&_[data-signature-mark]]:!w-[6.24rem] [&_[data-signature-mark]_img]:!scale-[0.78] [&_[data-signature-mark]_img]:!contrast-[1.25]">
+      <div id="pppk-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-[4.875rem] [&_[data-signature-mark]]:!w-[7.8rem] [&_[data-signature-mark]_img]:!scale-[0.975] [&_[data-signature-mark]_img]:!contrast-[1.6] [&_[data-signature-mark]_img]:!drop-shadow-[0_0_0.45px_\#111827]">
         <div className="mb-6 grid grid-cols-2">
           <span />
           <div className="justify-self-end pr-10">

@@ -6692,7 +6692,7 @@ function DispositionSheet({
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
-      <div id="standard-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-[9.5rem] [&_[data-signature-mark]]:!w-[15.2rem] [&_[data-signature-mark]_img]:!scale-[1.9]">
+      <div id="standard-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-32 [&_[data-signature-mark]]:!w-[12.8rem] [&_[data-signature-mark]_img]:!scale-[1.6]">
         <div className="mb-6 grid grid-cols-2">
           <span />
           <div className="justify-self-end pr-10">

@@ -2345,15 +2345,15 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         useCORS: true,
         logging: false,
         // Keep the on-screen preview unchanged; make only the printed
-        // signature marks 85% of their preview size.
+        // signature marks 75% of their preview size.
         onclone: (clonedDocument) => {
           const clonedSheet = clonedDocument.getElementById("standard-leave-print");
           clonedSheet?.querySelectorAll<HTMLElement>("[data-signature-mark]").forEach((mark) => {
-            mark.style.setProperty("height", "6.8rem", "important");
-            mark.style.setProperty("width", "10.88rem", "important");
+            mark.style.setProperty("height", "6rem", "important");
+            mark.style.setProperty("width", "9.6rem", "important");
             mark.querySelector<HTMLElement>("img")?.style.setProperty(
               "transform",
-              "scale(1.36)",
+              "scale(1.2)",
               "important",
             );
           });

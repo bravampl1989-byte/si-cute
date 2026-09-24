@@ -2275,6 +2275,20 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           scale: 2,
           useCORS: true,
           logging: false,
+          // Keep the preview compact, but give the signatures 20% more space
+          // on the downloaded PPPK A4 document for better print legibility.
+          onclone: (clonedDocument) => {
+            const clonedSheet = clonedDocument.getElementById("pppk-leave-print");
+            clonedSheet?.querySelectorAll<HTMLElement>("[data-signature-mark]").forEach((mark) => {
+              mark.style.setProperty("height", "3.9rem", "important");
+              mark.style.setProperty("width", "6.24rem", "important");
+              mark.querySelector<HTMLElement>("img")?.style.setProperty(
+                "transform",
+                "scale(0.78)",
+                "important",
+              );
+            });
+          },
         });
         const pdf = new jsPDF({
           orientation: "portrait",

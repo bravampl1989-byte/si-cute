@@ -2320,7 +2320,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
     }
 
     // Pegawai and Atasan use the standard preview sheet. Render that exact
-    // layout into an A4 page with a 10% safety scale to prevent printer crops.
+    // layout into an A4 page with a small safety scale for printer margins.
     setPdfPreview(request);
     const downloadStandardPdf = async (attempt = 0): Promise<void> => {
       const sheet = document.getElementById("standard-leave-print");
@@ -2352,8 +2352,8 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         compress: true,
       });
       const margin = 8;
-      const maxWidth = (210 - margin * 2) * 0.9;
-      const maxHeight = (297 - margin * 2) * 0.9;
+      const maxWidth = (210 - margin * 2) * 0.97;
+      const maxHeight = (297 - margin * 2) * 0.97;
       const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
       const width = canvas.width * ratio;
       const height = canvas.height * ratio;

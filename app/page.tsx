@@ -40,6 +40,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import type { jsPDF as JsPdf } from "jspdf";
 
 import { Badge } from "@/components/ui/badge";
 import { PaSampangLogo } from "@/components/pa-sampang-logo";
@@ -271,6 +272,70 @@ function downloadAttachment(request: LeaveRequest) {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
+}
+
+function hasSupportingAttachment(request: LeaveRequest) {
+  return request.type !== "Cuti Tahunan" && Boolean(request.attachmentUrl);
+}
+
+async function appendSickLeaveAttachmentPage(pdf: JsPdf, request: LeaveRequest) {
+  if (request.type !== "Cuti Sakit" || !request.attachmentUrl) return;
+
+  pdf.addPage();
+  pdf.setFont("helvetica", "bold");
+  pdf.setFontSize(11);
+  pdf.text("LAMPIRAN DOKUMEN PENDUKUNG CUTI SAKIT", 105, 14, {
+    align: "center",
+  });
+  pdf.setFont("helvetica", "normal");
+  pdf.setFontSize(8);
+  pdf.text(`Pengajuan ${request.id} - ${request.employee}`, 105, 20, {
+    align: "center",
+  });
+
+  if (request.attachmentUrl.startsWith("data:application/pdf")) {
+    pdf.setFontSize(10);
+    pdf.text(
+      "Lampiran berbentuk PDF. Gunakan tombol Lampiran pada preview formulir untuk meninjau atau mengunduh dokumen aslinya.",
+      105,
+      40,
+      { align: "center", maxWidth: 170 },
+    );
+    return;
+  }
+
+  const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const element = new Image();
+    element.onload = () => resolve(element);
+    element.onerror = () => reject(new Error("Dokumen gambar tidak dapat dimuat."));
+    element.src = request.attachmentUrl ?? "";
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth || image.width;
+  canvas.height = image.naturalHeight || image.height;
+  const context = canvas.getContext("2d");
+  if (!context || !canvas.width || !canvas.height) {
+    throw new Error("Dokumen gambar tidak dapat diproses.");
+  }
+  context.fillStyle = "#ffffff";
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0);
+
+  const maxWidth = 190;
+  const maxHeight = 258;
+  const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
+  const width = canvas.width * ratio;
+  const height = canvas.height * ratio;
+  pdf.addImage(
+    canvas.toDataURL("image/jpeg", 0.94),
+    "JPEG",
+    (210 - width) / 2,
+    28 + (maxHeight - height) / 2,
+    width,
+    height,
+    undefined,
+    "FAST",
+  );
 }
 
 const activeFiscalYear = getJakartaFiscalYear();
@@ -2247,6 +2312,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
             "FAST",
           );
         }
+        await appendSickLeaveAttachmentPage(pdf, request);
         pdf.save(`${request.id}.pdf`);
       };
       window.setTimeout(() => void downloadJudgePdf(), 0);
@@ -2317,6 +2383,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           undefined,
           "FAST",
         );
+        await appendSickLeaveAttachmentPage(pdf, request);
         pdf.save(`${request.id}.pdf`);
         showToast(`PDF ${request.id} berhasil diunduh.`);
       };
@@ -2386,6 +2453,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         undefined,
         "FAST",
       );
+      await appendSickLeaveAttachmentPage(pdf, request);
       pdf.save(`${request.id}.pdf`);
       showToast(`PDF ${request.id} berhasil diunduh.`);
     };
@@ -5095,6 +5163,26 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
                                 <FileText />
                                 Preview
                               </Button>
+                              {hasSupportingAttachment(request) ? (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setAttachmentPreview(request)}
+                                  >
+                                    <Eye />
+                                    Lampiran
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => downloadAttachment(request)}
+                                  >
+                                    <Download />
+                                    Unduh lampiran
+                                  </Button>
+                                </>
+                              ) : null}
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -5335,9 +5423,9 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           <section className="flex h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Preview formulir cuti">
             <header className="flex items-center justify-between border-b px-4 py-3">
               <div><p className="font-semibold">Preview formulir cuti</p><p className="text-sm text-muted-foreground">{pdfPreview.id} - {pdfPreview.employee}</p></div>
-              <div className="flex gap-2"><Button size="sm" variant="outline" onClick={() => downloadPdf(pdfPreview)}><Download className="h-4 w-4" />{hasEmployeeRole(adminEmployees.find((employee) => employee.nip === pdfPreview.nip), "Hakim") && pdfPreview.type === "Cuti Sakit" ? "Cetak / Simpan PDF" : "Unduh PDF"}</Button><Button size="icon" variant="ghost" onClick={() => setPdfPreview(null)} aria-label="Tutup preview"><X className="h-5 w-5" /></Button></div>
+              <div className="flex gap-2">{hasSupportingAttachment(pdfPreview) ? <Button size="sm" variant="outline" onClick={() => setAttachmentPreview(pdfPreview)}><Eye className="h-4 w-4" />Lampiran</Button> : null}<Button size="sm" variant="outline" onClick={() => downloadPdf(pdfPreview)}><Download className="h-4 w-4" />{hasEmployeeRole(adminEmployees.find((employee) => employee.nip === pdfPreview.nip), "Hakim") && pdfPreview.type === "Cuti Sakit" ? "Cetak / Simpan PDF" : "Unduh PDF"}</Button><Button size="icon" variant="ghost" onClick={() => setPdfPreview(null)} aria-label="Tutup preview"><X className="h-5 w-5" /></Button></div>
             </header>
-            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3"><DispositionSheet request={pdfPreview} employee={adminEmployees.find((employee) => employee.nip === pdfPreview.nip)} employees={adminEmployees} /></div>
+            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3"><DispositionSheet request={pdfPreview} employee={adminEmployees.find((employee) => employee.nip === pdfPreview.nip)} employees={adminEmployees} />{pdfPreview.type === "Cuti Sakit" && pdfPreview.attachmentUrl ? <SupportingAttachmentSheet request={pdfPreview} /> : null}</div>
           </section>
         </div>
       ) : null}
@@ -7195,6 +7283,39 @@ function JudgeSickLeaveSheet({
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+  );
+}
+
+function SupportingAttachmentSheet({ request }: { request: LeaveRequest }) {
+  if (!hasSupportingAttachment(request)) return null;
+
+  const isPdf =
+    request.attachmentType === "application/pdf" ||
+    request.attachmentUrl?.startsWith("data:application/pdf");
+
+  return (
+    <div className="mt-6 break-before-page scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
+      <div className="mx-auto flex min-h-[1120px] w-full min-w-[820px] max-w-[900px] flex-col bg-white px-10 py-8 text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)]">
+        <p className="text-center text-sm font-bold">LAMPIRAN DOKUMEN PENDUKUNG CUTI SAKIT</p>
+        <p className="mt-1 text-center text-xs">{request.id} - {request.employee}</p>
+        <div className="mt-6 min-h-0 flex-1 rounded border bg-slate-50 p-3">
+          {isPdf ? (
+            <iframe
+              title="Lampiran dokumen pendukung"
+              src={request.attachmentUrl}
+              className="h-full min-h-[900px] w-full bg-white"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={request.attachmentUrl}
+              alt="Lampiran dokumen pendukung"
+              className="h-full w-full object-contain"
+            />
+          )}
+        </div>
       </div>
     </div>
   );

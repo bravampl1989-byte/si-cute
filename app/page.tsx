@@ -6683,10 +6683,11 @@ function DispositionSheet({
       <div id="judge-sick-leave-print">
         <JudgeSickLeaveSheet
           variant={usesJudgeForm4A ? "4a" : "4b"}
-            request={request}
-            employee={employee}
-            approverEmployee={approverEmployee}
-          />
+          request={request}
+          employee={employee}
+          reviewerEmployee={reviewerEmployee}
+          approverEmployee={approverEmployee}
+        />
         <div className="mt-6 break-before-page">
           <DispositionSheet
             request={request}
@@ -6912,6 +6913,7 @@ function DispositionSheet({
                 <p>Hormat saya,</p>
                 <div className="my-2 flex justify-center">
                   <QrVerificationMark
+                    emphasized={request.type === "Cuti Sakit"}
                     signature={request.applicantSignature}
                     code={buildVerificationPayload(
                       request,
@@ -6972,6 +6974,7 @@ function DispositionSheet({
                   <>
                     <div className="my-2 flex justify-center">
                       <QrVerificationMark
+                        emphasized={request.type === "Cuti Sakit"}
                         signature={request.reviewerSignature}
                         code={buildVerificationPayload(
                           request,
@@ -7037,6 +7040,7 @@ function DispositionSheet({
                   <>
                     <div className="my-2 flex justify-center">
                       <QrVerificationMark
+                        emphasized={request.type === "Cuti Sakit"}
                         signature={request.approverSignature}
                         code={buildVerificationPayload(
                           request,
@@ -7069,17 +7073,20 @@ function JudgeSickLeaveSheet({
   variant,
   request,
   employee,
+  reviewerEmployee,
   approverEmployee,
 }: {
   variant: "4a" | "4b";
   request: LeaveRequest;
   employee?: AdminEmployee;
+  reviewerEmployee?: AdminEmployee;
   approverEmployee?: AdminEmployee;
 }) {
   const diagnosis = request.judgeDiagnosis || request.reason;
   const hospital = request.judgeHospitalName || "-";
   const certificateDate = request.judgeCertificateDate || "-";
   const pybApproved = request.status === "Disetujui";
+  const supervisorApproved = request.reviewerDecision === "disetujui";
   const supervisorDecisionLabel =
     request.reviewerDecision === "disetujui"
       ? "DISETUJUI"
@@ -7136,7 +7143,7 @@ function JudgeSickLeaveSheet({
           <p>Hormat saya,</p>
           {request.applicantSignature ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img className="mx-auto mt-1 h-16 w-40 object-contain" src={request.applicantSignature} alt="Tanda tangan pemohon" />
+            <img className="mx-auto mt-1 h-14 w-36 object-contain contrast-[1.6] drop-shadow-[0_0_0.45px_\#111827]" src={request.applicantSignature} alt="Tanda tangan pemohon" />
           ) : <div className="h-16" />}
           <p className="pt-1 font-semibold">{request.employee.toUpperCase()}</p>
         </div>
@@ -7158,6 +7165,13 @@ function JudgeSickLeaveSheet({
                 {!request.judgeSupervisorNote && supervisorDecisionLabel ? (
                   <p className="mt-4 text-center font-bold">{supervisorDecisionLabel}</p>
                 ) : null}
+                {supervisorApproved && request.reviewerSignature ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img className="mx-auto mt-1 h-14 w-36 object-contain contrast-[1.6] drop-shadow-[0_0_0.45px_\#111827]" src={request.reviewerSignature} alt={`Tanda tangan ${reviewerEmployee?.name ?? request.reviewer}`} />
+                    <p className="mt-1 text-center text-[10px] font-semibold">{reviewerEmployee?.name ?? request.reviewer}</p>
+                  </>
+                ) : null}
               </td>
             </tr>
             <tr>
@@ -7165,7 +7179,7 @@ function JudgeSickLeaveSheet({
                 <p>Keputusan Pejabat yang berwenang memberikan cuti:</p>
                 {pybApproved && request.approverSignature ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img className="mx-auto mt-2 h-10 w-32 object-contain" src={request.approverSignature} alt={`Tanda tangan ${approverEmployee?.name ?? request.approver}`} />
+                  <img className="mx-auto mt-2 h-9 w-28 object-contain contrast-[1.6] drop-shadow-[0_0_0.45px_\#111827]" src={request.approverSignature} alt={`Tanda tangan ${approverEmployee?.name ?? request.approver}`} />
                 ) : null}
                 {pybApproved ? (
                   <p className="mt-1 text-center font-semibold">
@@ -7382,6 +7396,7 @@ function PppkDispositionSheet({
                 <p>Hormat saya,</p>
                 <div className="my-2 flex justify-center">
                   <QrVerificationMark
+                    emphasized={request.type === "Cuti Sakit"}
                     signature={request.applicantSignature}
                     code={buildVerificationPayload(
                       request,
@@ -7439,6 +7454,7 @@ function PppkDispositionSheet({
                   <>
                     <div className="my-2 flex justify-center">
                       <QrVerificationMark
+                        emphasized={request.type === "Cuti Sakit"}
                         signature={request.reviewerSignature}
                         code={buildVerificationPayload(
                           request,
@@ -7489,6 +7505,7 @@ function PppkDispositionSheet({
                   <>
                     <div className="my-2 flex justify-center">
                       <QrVerificationMark
+                        emphasized={request.type === "Cuti Sakit"}
                         signature={request.approverSignature}
                         code={buildVerificationPayload(
                           request,
@@ -7690,7 +7707,15 @@ function SignaturePad({
   );
 }
 
-function QrVerificationMark({ code, signature }: { code: string; signature?: string | null }) {
+function QrVerificationMark({
+  code,
+  signature,
+  emphasized = false,
+}: {
+  code: string;
+  signature?: string | null;
+  emphasized?: boolean;
+}) {
   const [imageSrc, setImageSrc] = useState("");
 
   useEffect(() => {
@@ -7712,7 +7737,7 @@ function QrVerificationMark({ code, signature }: { code: string; signature?: str
         // eslint-disable-next-line @next/next/no-img-element
         <img
           alt="Tanda tangan manual"
-          className="h-full w-full scale-[2] object-contain"
+          className={`h-full w-full scale-[2] object-contain ${emphasized ? "contrast-[1.6] drop-shadow-[0_0_0.45px_\#111827]" : ""}`}
           src={imageSrc}
         />
       ) : (

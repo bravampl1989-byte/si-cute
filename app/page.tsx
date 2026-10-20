@@ -435,13 +435,16 @@ function formatCurrentNonAnnualLeaveTotal(
   employee: AdminEmployee | undefined,
   request: LeaveRequest,
   type: (typeof nonAnnualLeaveFields)[number]["type"],
+  requests?: LeaveRequest[],
 ) {
   if (request.type !== requestTypeByNonAnnualLeave[type]) return "";
 
-  // Pada formulir, keterangan cuti non-tahunan mengikuti lamanya cuti yang
-  // sedang diajukan. Riwayat akumulasi tetap tersedia pada rekap pegawai,
-  // tetapi tidak lagi membuat formulir menampilkan angka 0.
-  return `${request.days} hari`;
+  // Catatan cuti harus menampilkan pemakaian sebelumnya ditambah pengajuan
+  // yang sedang dicetak, bukan hanya lamanya pengajuan saat ini.
+  const total = requests
+    ? getCurrentNonAnnualLeaveTotalForEmployeeForm(employee, type, requests)
+    : getNonAnnualLeaveTotal(employee, type);
+  return `${total} hari`;
 }
 
 function getNonAnnualLeaveTotalForRecap(
@@ -2741,7 +2744,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
     drawCell("1. CUTI TAHUNAN", 15, 137, 70, 6, { bold: true });
     drawCell("PARAF PETUGAS CUTI", 85, 137, 20, 6, { bold: true, align: "center", fontSize: 5.8 });
     drawCell("2. CUTI BESAR", 105, 137, 45, 6, { bold: true });
-    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "besar"), 150, 137, 45, 6, { align: "center" });
+    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "besar", requests), 150, 137, 45, 6, { align: "center" });
     drawCell("Tahun", 15, 143, 22, 6, { bold: true });
     drawCell("Sisa", 37, 143, 20, 6, { bold: true });
     drawCell("Keterangan", 57, 143, 28, 6, { bold: true });
@@ -2750,22 +2753,22 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       pdf.addImage(adminMark, "PNG", 87, 150, 16, 6);
     }
     drawCell("3. CUTI SAKIT", 105, 143, 45, 6, { bold: true });
-    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "sakit"), 150, 143, 45, 6, { align: "center" });
+    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "sakit", requests), 150, 143, 45, 6, { align: "center" });
     drawCell(String(annualStatementRows[0]?.year ?? activeFiscalYear - 2), 15, 149, 22, 6);
     drawCell(String(annualStatementRows[0]?.remaining ?? 0), 37, 149, 20, 6);
     drawCell(annualStatementRows[0]?.note ?? "Tidak tersedia", 57, 149, 28, 6, { fontSize: 5.7 });
     drawCell("4. CUTI MELAHIRKAN", 105, 149, 45, 6, { bold: true });
-    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "melahirkan"), 150, 149, 45, 6, { align: "center" });
+    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "melahirkan", requests), 150, 149, 45, 6, { align: "center" });
     drawCell(String(annualStatementRows[1]?.year ?? activeFiscalYear - 1), 15, 155, 22, 6);
     drawCell(String(annualStatementRows[1]?.remaining ?? 0), 37, 155, 20, 6);
     drawCell(annualStatementRows[1]?.note ?? "Tidak tersedia", 57, 155, 28, 6, { fontSize: 5.7 });
     drawCell("5. CUTI KARENA ALASAN PENTING", 105, 155, 45, 6, { bold: true, fontSize: 6.2 });
-    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "alasan_penting"), 150, 155, 45, 6, { align: "center" });
+    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "alasan_penting", requests), 150, 155, 45, 6, { align: "center" });
     drawCell(String(annualStatementRows[2]?.year ?? activeFiscalYear), 15, 161, 22, 6);
     drawCell(String(annualStatementRows[2]?.remaining ?? 0), 37, 161, 20, 6);
     drawCell(annualStatementRows[2]?.note ?? "Tidak tersedia", 57, 161, 28, 6, { fontSize: 5.7 });
     drawCell("6. CUTI DI LUAR TANGGUNGAN NEGARA", 105, 161, 45, 6, { bold: true, fontSize: 6.2 });
-    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "di_luar_tanggungan_negara"), 150, 161, 45, 6, { align: "center" });
+    drawCell(formatCurrentNonAnnualLeaveTotal(requestEmployee, request, "di_luar_tanggungan_negara", requests), 150, 161, 45, 6, { align: "center" });
 
     sectionTitle("VI. ALAMAT SELAMA MENJALANKAN CUTI", 170);
     drawCell(request.address.toUpperCase(), 15, 175, 90, 40);
@@ -5507,7 +5510,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
               <div><p className="font-semibold">Preview formulir cuti</p><p className="text-sm text-muted-foreground">{pdfPreview.id} - {pdfPreview.employee}</p></div>
               <div className="flex gap-2">{hasSupportingAttachment(pdfPreview) ? <Button size="sm" variant="outline" onClick={() => setAttachmentPreview(pdfPreview)}><Eye className="h-4 w-4" />Lampiran</Button> : null}{viewRole === "admin" ? <Button size="sm" variant="outline" onClick={() => setSignatureQrRequest(pdfPreview)}><QrCode className="h-4 w-4" />{signatureDisplayMode === "qr" ? "Mode QR" : "TTD / QR"}</Button> : null}<Button size="sm" variant="outline" onClick={() => downloadPdf(pdfPreview)}><Download className="h-4 w-4" />{hasEmployeeRole(adminEmployees.find((employee) => employee.nip === pdfPreview.nip), "Hakim") && pdfPreview.type === "Cuti Sakit" ? "Cetak / Simpan PDF" : "Unduh PDF"}</Button><Button size="icon" variant="ghost" onClick={() => setPdfPreview(null)} aria-label="Tutup preview"><X className="h-5 w-5" /></Button></div>
             </header>
-            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3"><DispositionSheet request={pdfPreview} employee={adminEmployees.find((employee) => employee.nip === pdfPreview.nip)} employees={adminEmployees} signatureMode={viewRole === "admin" ? signatureDisplayMode : "manual"} />{pdfPreview.type === "Cuti Sakit" && pdfPreview.attachmentUrl ? <SupportingAttachmentSheet request={pdfPreview} /> : null}</div>
+            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3"><DispositionSheet request={pdfPreview} employee={adminEmployees.find((employee) => employee.nip === pdfPreview.nip)} employees={adminEmployees} allRequests={requests} signatureMode={viewRole === "admin" ? signatureDisplayMode : "manual"} />{pdfPreview.type === "Cuti Sakit" && pdfPreview.attachmentUrl ? <SupportingAttachmentSheet request={pdfPreview} /> : null}</div>
           </section>
         </div>
       ) : null}
@@ -6816,12 +6819,14 @@ function DispositionSheet({
   request,
   employee,
   employees,
+  allRequests,
   forceStandard = false,
   signatureMode = "manual",
 }: {
   request: LeaveRequest;
   employee?: AdminEmployee;
   employees: AdminEmployee[];
+  allRequests: LeaveRequest[];
   forceStandard?: boolean;
   signatureMode?: SignatureDisplayMode;
 }) {
@@ -6866,6 +6871,7 @@ function DispositionSheet({
             request={request}
             employee={employee}
             employees={employees}
+            allRequests={allRequests}
             forceStandard
             signatureMode={signatureMode}
           />
@@ -6880,6 +6886,7 @@ function DispositionSheet({
         request={request}
         employee={employee}
         employees={employees}
+        allRequests={allRequests}
         signatureMode={signatureMode}
       />
     );
@@ -7016,7 +7023,7 @@ function DispositionSheet({
               <PreviewSectionTitle title="PARAF PETUGAS CUTI" />
               <PreviewSectionTitle title="2. CUTI BESAR" />
               <PreviewCell align="center">
-                {formatCurrentNonAnnualLeaveTotal(employee, request, "besar")}
+                {formatCurrentNonAnnualLeaveTotal(employee, request, "besar", allRequests)}
               </PreviewCell>
             </tr>
             <tr>
@@ -7035,7 +7042,7 @@ function DispositionSheet({
               </td>
               <PreviewSectionTitle title="3. CUTI SAKIT" />
               <PreviewCell align="center">
-                {formatCurrentNonAnnualLeaveTotal(employee, request, "sakit")}
+                {formatCurrentNonAnnualLeaveTotal(employee, request, "sakit", allRequests)}
               </PreviewCell>
             </tr>
             {annualStatementRows.map((quota, index) => (
@@ -7055,6 +7062,7 @@ function DispositionSheet({
                     employee,
                     request,
                     ["melahirkan", "alasan_penting", "di_luar_tanggungan_negara"][index] as (typeof nonAnnualLeaveFields)[number]["type"],
+                    allRequests,
                   )}
                 </PreviewCell>
               </tr>
@@ -7440,11 +7448,13 @@ function PppkDispositionSheet({
   request,
   employee,
   employees,
+  allRequests,
   signatureMode = "manual",
 }: {
   request: LeaveRequest;
   employee?: AdminEmployee;
   employees: AdminEmployee[];
+  allRequests: LeaveRequest[];
   signatureMode?: SignatureDisplayMode;
 }) {
   const leaveType = request.type.replace("Cuti ", "");
@@ -7599,11 +7609,15 @@ function PppkDispositionSheet({
             ))}
             <tr>
               <PreviewSectionTitle title="2. CUTI SAKIT" colSpan={3} />
-              <PreviewCell />
+              <PreviewCell align="center">
+                {formatCurrentNonAnnualLeaveTotal(employee, request, "sakit", allRequests)}
+              </PreviewCell>
             </tr>
             <tr>
               <PreviewSectionTitle title="3. CUTI MELAHIRKAN" colSpan={3} />
-              <PreviewCell />
+              <PreviewCell align="center">
+                {formatCurrentNonAnnualLeaveTotal(employee, request, "melahirkan", allRequests)}
+              </PreviewCell>
             </tr>
           </tbody>
         </table>

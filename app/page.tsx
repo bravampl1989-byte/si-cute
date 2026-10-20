@@ -483,8 +483,7 @@ function getCurrentNonAnnualLeaveTotalForEmployeeForm(
       (request) =>
         request.nip === employee.nip &&
         request.type === requestTypeByNonAnnualLeave[type] &&
-        request.status !== "Ditolak" &&
-        (request.submittedYear ?? Number(request.submittedAt.slice(0, 4))) === activeFiscalYear,
+        request.status !== "Ditolak",
     )
     .reduce((total, request) => total + request.days, 0);
   return initialTotal + requestedDays;

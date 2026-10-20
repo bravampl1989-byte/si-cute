@@ -7304,13 +7304,13 @@ function SupportingAttachmentSheet({ request }: { request: LeaveRequest }) {
           {isPdf ? (
             <iframe
               title="Lampiran dokumen pendukung"
-              src={request.attachmentUrl}
+              src={request.attachmentUrl ?? undefined}
               className="h-full min-h-[900px] w-full bg-white"
             />
           ) : (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={request.attachmentUrl}
+              src={request.attachmentUrl ?? undefined}
               alt="Lampiran dokumen pendukung"
               className="h-full w-full object-contain"
             />

@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import QRCode from "qrcode";
 import {
   Bell,
   Building2,
@@ -32,6 +33,7 @@ import {
   LogOut,
   Menu,
   MessageCircle,
+  QrCode,
   Send,
   Settings,
   ShieldCheck,
@@ -75,6 +77,7 @@ type RequestStatus =
   | "Perbaikan";
 
 type ViewRole = "pegawai" | "pppk" | "atasan" | "pyb" | "admin";
+type SignatureDisplayMode = "manual" | "qr";
 
 type LeaveRequest = {
   id: string;
@@ -851,6 +854,10 @@ function HomeContent() {
   } | null>(null);
   const [attachmentPreview, setAttachmentPreview] = useState<LeaveRequest | null>(null);
   const [pdfPreview, setPdfPreview] = useState<LeaveRequest | null>(null);
+  const [signatureQrRequest, setSignatureQrRequest] =
+    useState<LeaveRequest | null>(null);
+  const [signatureDisplayMode, setSignatureDisplayMode] =
+    useState<SignatureDisplayMode>("manual");
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [fonnteToken, setFonnteToken] = useState("");
   const [fonnteTokenStatus, setFonnteTokenStatus] = useState(
@@ -2245,6 +2252,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
   }
 
   async function downloadPdf(request: LeaveRequest) {
+    const previewDelay = signatureDisplayMode === "qr" ? 350 : 0;
     const requestEmployee = adminEmployees.find(
       (employee) => employee.nip === request.nip,
     );
@@ -2307,7 +2315,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         await appendSickLeaveAttachmentPage(pdf, request);
         pdf.save(`${request.id}.pdf`);
       };
-      window.setTimeout(() => void downloadJudgePdf(), 0);
+      window.setTimeout(() => void downloadJudgePdf(), previewDelay);
       return;
     }
 
@@ -2379,7 +2387,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         pdf.save(`${request.id}.pdf`);
         showToast(`PDF ${request.id} berhasil diunduh.`);
       };
-      window.setTimeout(() => void downloadPppkPdf(), 0);
+      window.setTimeout(() => void downloadPppkPdf(), previewDelay);
       return;
     }
 
@@ -2449,7 +2457,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
       pdf.save(`${request.id}.pdf`);
       showToast(`PDF ${request.id} berhasil diunduh.`);
     };
-    window.setTimeout(() => void downloadStandardPdf(), 0);
+    window.setTimeout(() => void downloadStandardPdf(), previewDelay);
     return;
 
     const { jsPDF } = await import("jspdf");
@@ -2861,6 +2869,33 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
 
     pdf.save(`${request.id}.pdf`);
     showToast(`PDF ${request.id} berhasil diunduh.`);
+  }
+
+  async function downloadSignatureQr(request: LeaveRequest) {
+    const signer = adminEmployees.find(
+      (employee) => employee.nip === activeAccountNip,
+    );
+    const signerName = signer?.name?.toUpperCase() ?? "ADMIN SI CUTE";
+
+    try {
+      const dataUrl = await QRCode.toDataURL(
+        buildVerificationPayload(request, signerName, activeAccountNip),
+        {
+          errorCorrectionLevel: "M",
+          margin: 2,
+          width: 900,
+        },
+      );
+      const link = document.createElement("a");
+      link.href = dataUrl;
+      link.download = `${request.id}-qr-ttd-${activeAccountNip}.png`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      showToast(`QR verifikasi atas nama ${signerName} berhasil diunduh.`);
+    } catch {
+      showToast("QR verifikasi belum dapat dibuat. Silakan coba lagi.");
+    }
   }
 
   async function downloadHistoryPdf() {
@@ -5150,11 +5185,27 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setPdfPreview(request)}
+                                onClick={() => {
+                                  setSignatureDisplayMode("manual");
+                                  setPdfPreview(request);
+                                }}
                               >
                                 <FileText />
                                 Preview
                               </Button>
+                              {viewRole === "admin" ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSignatureDisplayMode("manual");
+                                    setSignatureQrRequest(request);
+                                  }}
+                                >
+                                  <QrCode />
+                                  TTD / QR
+                                </Button>
+                              ) : null}
                               {hasSupportingAttachment(request) ? (
                                 <>
                                   <Button
@@ -5410,14 +5461,50 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         </div>
       ) : null}
 
+      {viewRole === "admin" && signatureQrRequest ? (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-slate-950/65 p-4">
+          <section className="w-full max-w-md rounded-xl bg-white p-5 shadow-2xl" role="dialog" aria-modal="true" aria-label="Pilihan tanda tangan QR">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-slate-900">Pilihan tanda tangan</h2>
+                <p className="mt-1 text-sm text-muted-foreground">{signatureQrRequest.id} • {signatureQrRequest.employee}</p>
+              </div>
+              <Button type="button" size="icon" variant="ghost" onClick={() => setSignatureQrRequest(null)} aria-label="Tutup pilihan QR"><X className="h-5 w-5" /></Button>
+            </div>
+            <p className="mt-4 text-sm text-slate-600">Pilih QR sebagai pengganti tanda tangan pada preview/PDF. Saat dipindai, QR menampilkan nama dan NIP penanda tangan serta data dokumen.</p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <Button type="button" variant={signatureDisplayMode === "manual" ? "default" : "outline"} onClick={() => setSignatureDisplayMode("manual")}>TTD biasa</Button>
+              <Button type="button" variant={signatureDisplayMode === "qr" ? "default" : "outline"} onClick={() => setSignatureDisplayMode("qr")}><QrCode className="h-4 w-4" />QR verifikasi</Button>
+            </div>
+            <div className="mt-5 rounded-lg border bg-slate-50 p-4">
+              {signatureDisplayMode === "qr" ? (
+                <div className="flex flex-col items-center gap-3">
+                  <QrVerificationMark
+                    mode="qr"
+                    code={buildVerificationPayload(signatureQrRequest, adminEmployees.find((employee) => employee.nip === activeAccountNip)?.name?.toUpperCase() ?? "ADMIN SI CUTE", activeAccountNip)}
+                  />
+                  <p className="text-center text-xs text-slate-600">Scan untuk melihat nama penanda tangan dan detail verifikasi.</p>
+                </div>
+              ) : (
+                <p className="py-8 text-center text-sm text-slate-600">Tampilan formulir memakai tanda tangan biasa.</p>
+              )}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => void downloadSignatureQr(signatureQrRequest)}><Download className="h-4 w-4" />Unduh QR</Button>
+              <Button type="button" onClick={() => setSignatureQrRequest(null)}>Selesai</Button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       {pdfPreview ? (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-slate-950/65 p-3 sm:p-6">
           <section className="flex h-[94vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl" role="dialog" aria-modal="true" aria-label="Preview formulir cuti">
             <header className="flex items-center justify-between border-b px-4 py-3">
               <div><p className="font-semibold">Preview formulir cuti</p><p className="text-sm text-muted-foreground">{pdfPreview.id} - {pdfPreview.employee}</p></div>
-              <div className="flex gap-2">{hasSupportingAttachment(pdfPreview) ? <Button size="sm" variant="outline" onClick={() => setAttachmentPreview(pdfPreview)}><Eye className="h-4 w-4" />Lampiran</Button> : null}<Button size="sm" variant="outline" onClick={() => downloadPdf(pdfPreview)}><Download className="h-4 w-4" />{hasEmployeeRole(adminEmployees.find((employee) => employee.nip === pdfPreview.nip), "Hakim") && pdfPreview.type === "Cuti Sakit" ? "Cetak / Simpan PDF" : "Unduh PDF"}</Button><Button size="icon" variant="ghost" onClick={() => setPdfPreview(null)} aria-label="Tutup preview"><X className="h-5 w-5" /></Button></div>
+              <div className="flex gap-2">{hasSupportingAttachment(pdfPreview) ? <Button size="sm" variant="outline" onClick={() => setAttachmentPreview(pdfPreview)}><Eye className="h-4 w-4" />Lampiran</Button> : null}{viewRole === "admin" ? <Button size="sm" variant="outline" onClick={() => setSignatureQrRequest(pdfPreview)}><QrCode className="h-4 w-4" />{signatureDisplayMode === "qr" ? "Mode QR" : "TTD / QR"}</Button> : null}<Button size="sm" variant="outline" onClick={() => downloadPdf(pdfPreview)}><Download className="h-4 w-4" />{hasEmployeeRole(adminEmployees.find((employee) => employee.nip === pdfPreview.nip), "Hakim") && pdfPreview.type === "Cuti Sakit" ? "Cetak / Simpan PDF" : "Unduh PDF"}</Button><Button size="icon" variant="ghost" onClick={() => setPdfPreview(null)} aria-label="Tutup preview"><X className="h-5 w-5" /></Button></div>
             </header>
-            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3"><DispositionSheet request={pdfPreview} employee={adminEmployees.find((employee) => employee.nip === pdfPreview.nip)} employees={adminEmployees} />{pdfPreview.type === "Cuti Sakit" && pdfPreview.attachmentUrl ? <SupportingAttachmentSheet request={pdfPreview} /> : null}</div>
+            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3"><DispositionSheet request={pdfPreview} employee={adminEmployees.find((employee) => employee.nip === pdfPreview.nip)} employees={adminEmployees} signatureMode={viewRole === "admin" ? signatureDisplayMode : "manual"} />{pdfPreview.type === "Cuti Sakit" && pdfPreview.attachmentUrl ? <SupportingAttachmentSheet request={pdfPreview} /> : null}</div>
           </section>
         </div>
       ) : null}
@@ -6727,11 +6814,13 @@ function DispositionSheet({
   employee,
   employees,
   forceStandard = false,
+  signatureMode = "manual",
 }: {
   request: LeaveRequest;
   employee?: AdminEmployee;
   employees: AdminEmployee[];
   forceStandard?: boolean;
+  signatureMode?: SignatureDisplayMode;
 }) {
   const leaveType = request.type.replace("Cuti ", "");
   const hasReviewerSignature = [
@@ -6767,6 +6856,7 @@ function DispositionSheet({
           employee={employee}
           reviewerEmployee={reviewerEmployee}
           approverEmployee={approverEmployee}
+          signatureMode={signatureMode}
         />
         <div className="mt-6 break-before-page">
           <DispositionSheet
@@ -6774,6 +6864,7 @@ function DispositionSheet({
             employee={employee}
             employees={employees}
             forceStandard
+            signatureMode={signatureMode}
           />
         </div>
       </div>
@@ -6786,13 +6877,14 @@ function DispositionSheet({
         request={request}
         employee={employee}
         employees={employees}
+        signatureMode={signatureMode}
       />
     );
   }
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
-      <div id="standard-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-32 [&_[data-signature-mark]]:!w-[12.8rem] [&_[data-signature-mark]_img]:!scale-[1.6]">
+      <div id="standard-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-32 [&_[data-signature-mark]]:!w-[12.8rem] [&_[data-signature-mark]:not([data-signature-qr])_img]:!scale-[1.6]">
         <div className="mb-6 grid grid-cols-2">
           <span />
           <div className="justify-self-end pr-10">
@@ -7000,6 +7092,7 @@ function DispositionSheet({
                       request.employee.toUpperCase(),
                       request.nip,
                     )}
+                    mode={signatureMode}
                   />
                 </div>
                 <p className="font-bold">{request.employee.toUpperCase()}</p>
@@ -7061,6 +7154,7 @@ function DispositionSheet({
                           request.reviewer.toUpperCase(),
                           reviewerEmployee?.nip ?? "-",
                         )}
+                        mode={signatureMode}
                       />
                     </div>
                     <p className="font-bold">{request.reviewer.toUpperCase()}</p>
@@ -7127,6 +7221,7 @@ function DispositionSheet({
                           request.approver.toUpperCase(),
                           approverEmployee?.nip ?? "-",
                         )}
+                        mode={signatureMode}
                       />
                     </div>
                     <p className="font-bold">{request.approver.toUpperCase()}</p>
@@ -7155,12 +7250,14 @@ function JudgeSickLeaveSheet({
   employee,
   reviewerEmployee,
   approverEmployee,
+  signatureMode = "manual",
 }: {
   variant: "4a" | "4b";
   request: LeaveRequest;
   employee?: AdminEmployee;
   reviewerEmployee?: AdminEmployee;
   approverEmployee?: AdminEmployee;
+  signatureMode?: SignatureDisplayMode;
 }) {
   const diagnosis = request.judgeDiagnosis || request.reason;
   const hospital = request.judgeHospitalName || "-";
@@ -7221,7 +7318,15 @@ function JudgeSickLeaveSheet({
         </p>
         <div className="mt-8 w-56 text-center">
           <p>Hormat saya,</p>
-          {request.applicantSignature ? (
+          {signatureMode === "qr" ? (
+            <div className="mx-auto mt-1">
+              <QrVerificationMark
+                mode="qr"
+                className="flex h-14 w-36 items-center justify-center overflow-hidden bg-white p-1"
+                code={buildVerificationPayload(request, request.employee.toUpperCase(), request.nip)}
+              />
+            </div>
+          ) : request.applicantSignature ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img className="mx-auto mt-1 h-14 w-36 object-contain contrast-[1.6] drop-shadow-[0_0_0.45px_\#111827]" src={request.applicantSignature} alt="Tanda tangan pemohon" />
           ) : <div className="h-16" />}
@@ -7245,7 +7350,16 @@ function JudgeSickLeaveSheet({
                 {!request.judgeSupervisorNote && supervisorDecisionLabel ? (
                   <p className="mt-4 text-center font-bold">{supervisorDecisionLabel}</p>
                 ) : null}
-                {supervisorApproved && request.reviewerSignature ? (
+                {supervisorApproved && signatureMode === "qr" ? (
+                  <>
+                    <QrVerificationMark
+                      mode="qr"
+                      className="mx-auto mt-1 flex h-14 w-36 items-center justify-center overflow-hidden bg-white p-1"
+                      code={buildVerificationPayload(request, (reviewerEmployee?.name ?? request.reviewer).toUpperCase(), reviewerEmployee?.nip ?? "-")}
+                    />
+                    <p className="mt-1 text-center text-[10px] font-semibold">{reviewerEmployee?.name ?? request.reviewer}</p>
+                  </>
+                ) : supervisorApproved && request.reviewerSignature ? (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img className="mx-auto mt-1 h-14 w-36 object-contain contrast-[1.6] drop-shadow-[0_0_0.45px_\#111827]" src={request.reviewerSignature} alt={`Tanda tangan ${reviewerEmployee?.name ?? request.reviewer}`} />
@@ -7257,7 +7371,13 @@ function JudgeSickLeaveSheet({
             <tr>
               <td className="h-28 border border-black p-2 align-top">
                 <p>Keputusan Pejabat yang berwenang memberikan cuti:</p>
-                {pybApproved && request.approverSignature ? (
+                {pybApproved && signatureMode === "qr" ? (
+                  <QrVerificationMark
+                    mode="qr"
+                    className="mx-auto mt-2 flex h-9 w-28 items-center justify-center overflow-hidden bg-white p-1"
+                    code={buildVerificationPayload(request, (approverEmployee?.name ?? request.approver).toUpperCase(), approverEmployee?.nip ?? request.approverNip ?? "-")}
+                  />
+                ) : pybApproved && request.approverSignature ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img className="mx-auto mt-2 h-9 w-28 object-contain contrast-[1.6] drop-shadow-[0_0_0.45px_\#111827]" src={request.approverSignature} alt={`Tanda tangan ${approverEmployee?.name ?? request.approver}`} />
                 ) : null}
@@ -7317,10 +7437,12 @@ function PppkDispositionSheet({
   request,
   employee,
   employees,
+  signatureMode = "manual",
 }: {
   request: LeaveRequest;
   employee?: AdminEmployee;
   employees: AdminEmployee[];
+  signatureMode?: SignatureDisplayMode;
 }) {
   const leaveType = request.type.replace("Cuti ", "");
   const isLeave = (value: string) =>
@@ -7342,7 +7464,7 @@ function PppkDispositionSheet({
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
-      <div id="pppk-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-[4.875rem] [&_[data-signature-mark]]:!w-[7.8rem] [&_[data-signature-mark]_img]:!scale-[0.975] [&_[data-signature-mark]_img]:!contrast-[1.6] [&_[data-signature-mark]_img]:!drop-shadow-[0_0_0.45px_\#111827]">
+      <div id="pppk-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-[4.875rem] [&_[data-signature-mark]]:!w-[7.8rem] [&_[data-signature-mark]:not([data-signature-qr])_img]:!scale-[0.975] [&_[data-signature-mark]:not([data-signature-qr])_img]:!contrast-[1.6] [&_[data-signature-mark]:not([data-signature-qr])_img]:!drop-shadow-[0_0_0.45px_\#111827]">
         <div className="mb-6 grid grid-cols-2">
           <span />
           <div className="justify-self-end pr-10">
@@ -7516,6 +7638,7 @@ function PppkDispositionSheet({
                       request.employee.toUpperCase(),
                       request.nip,
                     )}
+                    mode={signatureMode}
                   />
                 </div>
                 <p className="font-bold">{request.employee.toUpperCase()}</p>
@@ -7574,6 +7697,7 @@ function PppkDispositionSheet({
                           request.reviewer.toUpperCase(),
                           reviewerEmployee?.nip ?? "-",
                         )}
+                        mode={signatureMode}
                       />
                     </div>
                     <p className="font-bold">{request.reviewer.toUpperCase()}</p>
@@ -7625,6 +7749,7 @@ function PppkDispositionSheet({
                           request.approver.toUpperCase(),
                           approverEmployee?.nip ?? request.approverNip ?? "-",
                         )}
+                        mode={signatureMode}
                       />
                     </div>
                     <p className="font-bold">{request.approver.toUpperCase()}</p>
@@ -7824,14 +7949,36 @@ function QrVerificationMark({
   code,
   signature,
   emphasized = false,
+  mode = "manual",
+  className,
 }: {
   code: string;
   signature?: string | null;
   emphasized?: boolean;
+  mode?: SignatureDisplayMode;
+  className?: string;
 }) {
   const [imageSrc, setImageSrc] = useState("");
 
   useEffect(() => {
+    let active = true;
+    if (mode === "qr") {
+      void QRCode.toDataURL(code, {
+        errorCorrectionLevel: "M",
+        margin: 1,
+        width: 360,
+      })
+        .then((qrImage) => {
+          if (active) setImageSrc(qrImage);
+        })
+        .catch(() => {
+          if (active) setImageSrc("");
+        });
+      return () => {
+        active = false;
+      };
+    }
+
     const nipLine = code.split("\n").find((line) => line.startsWith("NIP "));
     const nip = nipLine?.slice(4).trim() ?? "";
     try {
@@ -7842,20 +7989,23 @@ function QrVerificationMark({
     } catch {
       setImageSrc("");
     }
-  }, [code, signature]);
+    return () => {
+      active = false;
+    };
+  }, [code, signature, mode]);
 
   return (
-    <div data-signature-mark className="flex h-40 w-64 items-center justify-center overflow-hidden bg-white p-1">
+    <div data-signature-mark data-signature-qr={mode === "qr" ? "true" : undefined} className={className ?? "flex h-40 w-64 items-center justify-center overflow-hidden bg-white p-1"}>
       {imageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          alt="Tanda tangan manual"
-          className={`h-full w-full scale-[2] object-contain ${emphasized ? "contrast-[1.6] drop-shadow-[0_0_0.45px_\#111827]" : ""}`}
+          alt={mode === "qr" ? "Kode QR verifikasi tanda tangan" : "Tanda tangan manual"}
+          className={mode === "qr" ? "h-full w-full object-contain" : `h-full w-full scale-[2] object-contain ${emphasized ? "contrast-[1.6] drop-shadow-[0_0_0.45px_\#111827]" : ""}`}
           src={imageSrc}
         />
       ) : (
         <span className="px-2 text-center text-[8px] text-gray-500">
-          Tanda tangan belum tersedia
+          {mode === "qr" ? "QR verifikasi belum tersedia" : "Tanda tangan belum tersedia"}
         </span>
       )}
     </div>

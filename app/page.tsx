@@ -435,18 +435,10 @@ function formatCurrentNonAnnualLeaveTotal(
 ) {
   if (request.type !== requestTypeByNonAnnualLeave[type]) return "";
 
-  // Catatan pada formulir menampilkan jumlah sebelum pengajuan yang sedang
-  // dicetak ditambahkan, termasuk setelah pengajuan itu disetujui PyB.
-  // Pengajuan tersebut sudah termasuk di total berjalan.
-  const totalBerjalan = getNonAnnualLeaveTotal(employee, type);
-  const saldoAwal =
-    employee?.nonAnnualLeaveBase?.find((leave) => leave.type === type)?.days ??
-    0;
-  const sebelumPengajuanIni = Math.max(
-    saldoAwal,
-    totalBerjalan - request.days,
-  );
-  return String(sebelumPengajuanIni);
+  // Pada formulir, keterangan cuti non-tahunan mengikuti lamanya cuti yang
+  // sedang diajukan. Riwayat akumulasi tetap tersedia pada rekap pegawai,
+  // tetapi tidak lagi membuat formulir menampilkan angka 0.
+  return `${request.days} hari`;
 }
 
 function getNonAnnualLeaveTotalForRecap(

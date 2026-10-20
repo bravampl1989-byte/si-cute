@@ -2437,9 +2437,12 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         format: "a4",
         compress: true,
       });
-      const margin = 8;
-      const maxWidth = (210 - margin * 2) * 0.97;
-      const maxHeight = (297 - margin * 2) * 0.97;
+      // Use almost all of the printable A4 area. The form is intentionally
+      // wider than the preview viewport so its table columns do not shrink
+      // when the complete sheet is fitted by height.
+      const margin = 6;
+      const maxWidth = 210 - margin * 2;
+      const maxHeight = 297 - margin * 2;
       const ratio = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
       const width = canvas.width * ratio;
       const height = canvas.height * ratio;
@@ -6884,7 +6887,7 @@ function DispositionSheet({
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
-      <div id="standard-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-32 [&_[data-signature-mark]]:!w-[12.8rem] [&_[data-signature-mark]:not([data-signature-qr])_img]:!scale-[1.6]">
+      <div id="standard-leave-print" className="mx-auto w-[1100px] min-w-[1100px] max-w-[1100px] bg-white px-7 py-6 text-[12px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-32 [&_[data-signature-mark]]:!w-[12.8rem] [&_[data-signature-mark]:not([data-signature-qr])_img]:!scale-[1.6]">
         <div className="mb-6 grid grid-cols-2">
           <span />
           <div className="justify-self-end pr-10">
@@ -7464,7 +7467,7 @@ function PppkDispositionSheet({
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
-      <div id="pppk-leave-print" className="mx-auto w-full min-w-[860px] max-w-[980px] bg-white px-8 py-7 text-[11px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-[4.875rem] [&_[data-signature-mark]]:!w-[7.8rem] [&_[data-signature-mark]:not([data-signature-qr])_img]:!scale-[0.975] [&_[data-signature-mark]:not([data-signature-qr])_img]:!contrast-[1.6] [&_[data-signature-mark]:not([data-signature-qr])_img]:!drop-shadow-[0_0_0.45px_\#111827]">
+      <div id="pppk-leave-print" className="mx-auto w-[1100px] min-w-[1100px] max-w-[1100px] bg-white px-7 py-6 text-[12px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-[4.875rem] [&_[data-signature-mark]]:!w-[7.8rem] [&_[data-signature-mark]:not([data-signature-qr])_img]:!scale-[0.975] [&_[data-signature-mark]:not([data-signature-qr])_img]:!contrast-[1.6] [&_[data-signature-mark]:not([data-signature-qr])_img]:!drop-shadow-[0_0_0.45px_\#111827]">
         <div className="mb-6 grid grid-cols-2">
           <span />
           <div className="justify-self-end pr-10">

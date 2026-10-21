@@ -7375,7 +7375,11 @@ function JudgeSickLeaveSheet({
           <p className="pt-1 font-semibold">{request.employee.toUpperCase()}</p>
         </div>
 
-        <table className="mt-8 w-full border-collapse border border-black text-left">
+        <table className="mt-8 w-full table-fixed border-collapse border border-black text-left">
+          <colgroup>
+            <col className="w-1/2" />
+            <col className="w-1/2" />
+          </colgroup>
           <tbody>
             <tr>
               <td rowSpan={2} className="w-1/2 border border-black p-2 align-top">
@@ -7384,7 +7388,7 @@ function JudgeSickLeaveSheet({
                   <p className="mt-3 whitespace-pre-wrap">{request.judgeAdminNote}</p>
                 ) : null}
               </td>
-              <td className="h-28 border border-black p-2 align-top">
+              <td className="h-40 border border-black p-2 align-top">
                 <p>Catatan/Pertimbangan Atasan Langsung:</p>
                 {request.judgeSupervisorNote ? (
                   <p className="mt-2 whitespace-pre-wrap">{request.judgeSupervisorNote}</p>
@@ -7411,7 +7415,7 @@ function JudgeSickLeaveSheet({
               </td>
             </tr>
             <tr>
-              <td className="h-28 border border-black p-2 align-top">
+              <td className="h-40 border border-black p-2 align-top">
                 <p>Keputusan Pejabat yang berwenang memberikan cuti:</p>
                 {pybApproved && signatureMode === "qr" ? (
                   <QrVerificationMark

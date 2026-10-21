@@ -6847,6 +6847,9 @@ function DispositionSheet({
   const approverEmployee = employees.find(
     (item) => item.name === request.approver,
   );
+  const adminEmployee = employees.find((item) =>
+    hasEmployeeRole(item, "Admin Pembuat Daftar Cuti"),
+  );
   const isJudgeEmployee =
     hasEmployeeRole(employee, "Hakim") ||
     employee?.position.toLowerCase().includes("hakim") === true;
@@ -6894,7 +6897,7 @@ function DispositionSheet({
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
-      <div id="standard-leave-print" className="mx-auto w-[1100px] min-w-[1100px] max-w-[1100px] bg-white px-7 py-6 text-[12px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-32 [&_[data-signature-mark]]:!w-[12.8rem] [&_[data-signature-mark]:not([data-signature-qr])_img]:!scale-[1.6]">
+      <div id="standard-leave-print" className="mx-auto w-[1100px] min-w-[1100px] max-w-[1100px] bg-white px-7 py-6 text-[12px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]:not([data-signature-compact])]:!h-32 [&_[data-signature-mark]:not([data-signature-compact])]:!w-[12.8rem] [&_[data-signature-mark]:not([data-signature-qr]):not([data-signature-compact])_img]:!scale-[1.6]">
         <div className="mb-6 grid grid-cols-2">
           <span />
           <div className="justify-self-end pr-10">
@@ -7031,7 +7034,18 @@ function DispositionSheet({
               <PreviewLabel>Sisa</PreviewLabel>
               <PreviewLabel>Keterangan</PreviewLabel>
               <td className="border border-black p-1 align-middle" rowSpan={4}>
-                {hasAdminSignature && request.adminSignature ? (
+                {hasAdminSignature && signatureMode === "qr" ? (
+                  <QrVerificationMark
+                    mode="qr"
+                    compact
+                    className="mx-auto flex h-14 w-full items-center justify-center overflow-hidden bg-white p-1"
+                    code={buildVerificationPayload(
+                      request,
+                      adminEmployee?.name?.toUpperCase() ?? "ADMIN PEMBUAT DAFTAR CUTI",
+                      adminEmployee?.nip ?? "-",
+                    )}
+                  />
+                ) : hasAdminSignature && request.adminSignature ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     alt="Paraf Admin"
@@ -7474,10 +7488,13 @@ function PppkDispositionSheet({
   const approverEmployee = employees.find(
     (item) => item.nip === request.approverNip,
   ) ?? employees.find((item) => item.name === request.approver);
+  const adminEmployee = employees.find((item) =>
+    hasEmployeeRole(item, "Admin Pembuat Daftar Cuti"),
+  );
 
   return (
     <div className="scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
-      <div id="pppk-leave-print" className="mx-auto w-[1100px] min-w-[1100px] max-w-[1100px] bg-white px-7 py-6 text-[12px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]]:!h-[4.875rem] [&_[data-signature-mark]]:!w-[7.8rem] [&_[data-signature-mark]:not([data-signature-qr])_img]:!scale-[0.975] [&_[data-signature-mark]:not([data-signature-qr])_img]:!contrast-[1.6] [&_[data-signature-mark]:not([data-signature-qr])_img]:!drop-shadow-[0_0_0.45px_\#111827]">
+      <div id="pppk-leave-print" className="mx-auto w-[1100px] min-w-[1100px] max-w-[1100px] bg-white px-7 py-6 text-[12px] leading-tight text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)] [&_[data-signature-mark]:not([data-signature-compact])]:!h-[4.875rem] [&_[data-signature-mark]:not([data-signature-compact])]:!w-[7.8rem] [&_[data-signature-mark]:not([data-signature-qr]):not([data-signature-compact])_img]:!scale-[0.975] [&_[data-signature-mark]:not([data-signature-qr]):not([data-signature-compact])_img]:!contrast-[1.6] [&_[data-signature-mark]:not([data-signature-qr]):not([data-signature-compact])_img]:!drop-shadow-[0_0_0.45px_\#111827]">
         <div className="mb-6 grid grid-cols-2">
           <span />
           <div className="justify-self-end pr-10">
@@ -7595,7 +7612,18 @@ function PppkDispositionSheet({
                 <PreviewCell>{quota.note}</PreviewCell>
                 {index === 0 ? (
                   <td className="border border-black p-1 align-middle" rowSpan={5}>
-                    {hasAdminSignature && request.adminSignature ? (
+                    {hasAdminSignature && signatureMode === "qr" ? (
+                      <QrVerificationMark
+                        mode="qr"
+                        compact
+                        className="mx-auto flex h-14 w-full items-center justify-center overflow-hidden bg-white p-1"
+                        code={buildVerificationPayload(
+                          request,
+                          adminEmployee?.name?.toUpperCase() ?? "ADMIN PEMBUAT DAFTAR CUTI",
+                          adminEmployee?.nip ?? "-",
+                        )}
+                      />
+                    ) : hasAdminSignature && request.adminSignature ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         alt="Paraf Admin"
@@ -7968,12 +7996,14 @@ function QrVerificationMark({
   emphasized = false,
   mode = "manual",
   className,
+  compact = false,
 }: {
   code: string;
   signature?: string | null;
   emphasized?: boolean;
   mode?: SignatureDisplayMode;
   className?: string;
+  compact?: boolean;
 }) {
   const [imageSrc, setImageSrc] = useState("");
 
@@ -8012,7 +8042,7 @@ function QrVerificationMark({
   }, [code, signature, mode]);
 
   return (
-    <div data-signature-mark data-signature-qr={mode === "qr" ? "true" : undefined} className={className ?? "flex h-40 w-64 items-center justify-center overflow-hidden bg-white p-1"}>
+    <div data-signature-mark data-signature-qr={mode === "qr" ? "true" : undefined} data-signature-compact={compact ? "true" : undefined} className={className ?? "flex h-40 w-64 items-center justify-center overflow-hidden bg-white p-1"}>
       {imageSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img

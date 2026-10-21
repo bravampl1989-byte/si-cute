@@ -7364,7 +7364,7 @@ function JudgeSickLeaveSheet({
             <div className="mx-auto mt-1">
               <QrVerificationMark
                 mode="qr"
-                className="flex h-14 w-36 items-center justify-center overflow-hidden bg-white p-1"
+                className="flex h-16 w-16 items-center justify-center overflow-hidden bg-white p-1"
                 code={buildVerificationPayload(request, request.employee.toUpperCase(), request.nip)}
               />
             </div>
@@ -7396,7 +7396,7 @@ function JudgeSickLeaveSheet({
                   <>
                     <QrVerificationMark
                       mode="qr"
-                      className="mx-auto mt-1 flex h-14 w-36 items-center justify-center overflow-hidden bg-white p-1"
+                      className="mx-auto mt-1 flex h-16 w-16 items-center justify-center overflow-hidden bg-white p-1"
                       code={buildVerificationPayload(request, (reviewerEmployee?.name ?? request.reviewer).toUpperCase(), reviewerEmployee?.nip ?? "-")}
                     />
                     <p className="mt-1 text-center text-[10px] font-semibold">{reviewerEmployee?.name ?? request.reviewer}</p>
@@ -7416,7 +7416,7 @@ function JudgeSickLeaveSheet({
                 {pybApproved && signatureMode === "qr" ? (
                   <QrVerificationMark
                     mode="qr"
-                    className="mx-auto mt-2 flex h-9 w-28 items-center justify-center overflow-hidden bg-white p-1"
+                    className="mx-auto mt-2 flex h-12 w-12 items-center justify-center overflow-hidden bg-white p-1"
                     code={buildVerificationPayload(request, (approverEmployee?.name ?? request.approver).toUpperCase(), approverEmployee?.nip ?? request.approverNip ?? "-")}
                   />
                 ) : pybApproved && request.approverSignature ? (

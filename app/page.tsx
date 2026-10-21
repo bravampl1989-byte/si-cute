@@ -281,13 +281,13 @@ function hasSupportingAttachment(request: LeaveRequest) {
   return request.type !== "Cuti Tahunan" && Boolean(request.attachmentUrl);
 }
 
-async function appendSickLeaveAttachmentPage(pdf: JsPdf, request: LeaveRequest) {
-  if (request.type !== "Cuti Sakit" || !request.attachmentUrl) return;
+async function appendSupportingAttachmentPage(pdf: JsPdf, request: LeaveRequest) {
+  if (!hasSupportingAttachment(request)) return;
 
   pdf.addPage();
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(11);
-  pdf.text("LAMPIRAN DOKUMEN PENDUKUNG CUTI SAKIT", 105, 14, {
+  pdf.text(`LAMPIRAN DOKUMEN PENDUKUNG ${request.type.toUpperCase()}`, 105, 14, {
     align: "center",
   });
   pdf.setFont("helvetica", "normal");
@@ -2315,7 +2315,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
             "FAST",
           );
         }
-        await appendSickLeaveAttachmentPage(pdf, request);
+        await appendSupportingAttachmentPage(pdf, request);
         pdf.save(`${request.id}.pdf`);
       };
       window.setTimeout(() => void downloadJudgePdf(), previewDelay);
@@ -2395,7 +2395,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           undefined,
           "FAST",
         );
-        await appendSickLeaveAttachmentPage(pdf, request);
+        await appendSupportingAttachmentPage(pdf, request);
         pdf.save(`${request.id}.pdf`);
         showToast(`PDF ${request.id} berhasil diunduh.`);
       };
@@ -2476,7 +2476,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         undefined,
         "FAST",
       );
-      await appendSickLeaveAttachmentPage(pdf, request);
+      await appendSupportingAttachmentPage(pdf, request);
       pdf.save(`${request.id}.pdf`);
       showToast(`PDF ${request.id} berhasil diunduh.`);
     };
@@ -5527,7 +5527,7 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
               <div><p className="font-semibold">Preview formulir cuti</p><p className="text-sm text-muted-foreground">{pdfPreview.id} - {pdfPreview.employee}</p></div>
               <div className="flex gap-2">{hasSupportingAttachment(pdfPreview) ? <Button size="sm" variant="outline" onClick={() => setAttachmentPreview(pdfPreview)}><Eye className="h-4 w-4" />Lampiran</Button> : null}{viewRole === "admin" ? <Button size="sm" variant="outline" onClick={() => setSignatureQrRequest(pdfPreview)}><QrCode className="h-4 w-4" />{signatureDisplayMode === "qr" ? "Mode QR" : "TTD / QR"}</Button> : null}<Button size="sm" variant="outline" onClick={() => downloadPdf(pdfPreview)}><Download className="h-4 w-4" />{hasEmployeeRole(adminEmployees.find((employee) => employee.nip === pdfPreview.nip), "Hakim") && pdfPreview.type === "Cuti Sakit" ? "Cetak / Simpan PDF" : "Unduh PDF"}</Button><Button size="icon" variant="ghost" onClick={() => setPdfPreview(null)} aria-label="Tutup preview"><X className="h-5 w-5" /></Button></div>
             </header>
-            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3"><DispositionSheet request={pdfPreview} employee={adminEmployees.find((employee) => employee.nip === pdfPreview.nip)} employees={adminEmployees} allRequests={requests} signatureMode={viewRole === "admin" ? signatureDisplayMode : "manual"} />{pdfPreview.type === "Cuti Sakit" && pdfPreview.attachmentUrl ? <SupportingAttachmentSheet request={pdfPreview} /> : null}</div>
+            <div className="min-h-0 flex-1 overflow-auto bg-slate-100 p-3"><DispositionSheet request={pdfPreview} employee={adminEmployees.find((employee) => employee.nip === pdfPreview.nip)} employees={adminEmployees} allRequests={requests} signatureMode={viewRole === "admin" ? signatureDisplayMode : "manual"} />{hasSupportingAttachment(pdfPreview) ? <SupportingAttachmentSheet request={pdfPreview} /> : null}</div>
           </section>
         </div>
       ) : null}
@@ -7456,7 +7456,7 @@ function SupportingAttachmentSheet({ request }: { request: LeaveRequest }) {
   return (
     <div className="mt-6 break-before-page scrollbar-soft overflow-x-auto rounded-lg border bg-white p-3 shadow-sm sm:p-4">
       <div className="mx-auto flex min-h-[1120px] w-full min-w-[820px] max-w-[900px] flex-col bg-white px-10 py-8 text-black shadow-[0_0_0_1px_rgba(15,23,42,0.06)]">
-        <p className="text-center text-sm font-bold">LAMPIRAN DOKUMEN PENDUKUNG CUTI SAKIT</p>
+        <p className="text-center text-sm font-bold">LAMPIRAN DOKUMEN PENDUKUNG {request.type.toUpperCase()}</p>
         <p className="mt-1 text-center text-xs">{request.id} - {request.employee}</p>
         <div className="mt-6 min-h-0 flex-1 rounded border bg-slate-50 p-3">
           {isPdf ? (

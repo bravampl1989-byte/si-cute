@@ -2349,14 +2349,23 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
           onclone: (clonedDocument) => {
             const clonedSheet = clonedDocument.getElementById("pppk-leave-print");
             clonedSheet?.querySelectorAll<HTMLElement>("[data-signature-mark]").forEach((mark) => {
+              const compact = mark.dataset.signatureCompact === "true";
+              const image = mark.querySelector<HTMLElement>("img");
+              if (compact) {
+                mark.style.setProperty("height", "3.75rem", "important");
+                mark.style.setProperty("width", "3.75rem", "important");
+                image?.style.setProperty("transform", "scale(1)", "important");
+                image?.style.setProperty("filter", "none", "important");
+                return;
+              }
               mark.style.setProperty("height", "4.875rem", "important");
               mark.style.setProperty("width", "7.8rem", "important");
-              mark.querySelector<HTMLElement>("img")?.style.setProperty(
+              image?.style.setProperty(
                 "transform",
                 "scale(0.975)",
                 "important",
               );
-              mark.querySelector<HTMLElement>("img")?.style.setProperty(
+              image?.style.setProperty(
                 "filter",
                 "contrast(1.6) drop-shadow(0 0 0.45px #111827)",
                 "important",
@@ -2424,9 +2433,17 @@ Pesan ini dikirim otomatis oleh SI CUTE. Buka SI CUTE dengan link https://sicute
         onclone: (clonedDocument) => {
           const clonedSheet = clonedDocument.getElementById("standard-leave-print");
           clonedSheet?.querySelectorAll<HTMLElement>("[data-signature-mark]").forEach((mark) => {
+            const compact = mark.dataset.signatureCompact === "true";
+            const image = mark.querySelector<HTMLElement>("img");
+            if (compact) {
+              mark.style.setProperty("height", "3.75rem", "important");
+              mark.style.setProperty("width", "3.75rem", "important");
+              image?.style.setProperty("transform", "scale(1)", "important");
+              return;
+            }
             mark.style.setProperty("height", "6rem", "important");
             mark.style.setProperty("width", "9.6rem", "important");
-            mark.querySelector<HTMLElement>("img")?.style.setProperty(
+            image?.style.setProperty(
               "transform",
               "scale(1.2)",
               "important",
